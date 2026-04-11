@@ -1129,12 +1129,12 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
             padding: EdgeInsets.zero,
             height: 0,
             child: _menuItem(
-                context: context,
-                value: 0,
-                icon: LucideIcons.edit3,
-                label: 'Edit',
-                extraTopRadius: true,
-                ),
+              context: context,
+              value: 0,
+              icon: LucideIcons.edit3,
+              label: 'Edit',
+              extraTopRadius: true,
+            ),
           ),
           PopupMenuItem(
             enabled: false,
@@ -1154,12 +1154,12 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
             padding: EdgeInsets.zero,
             height: 0,
             child: _menuItem(
-                context: context,
-                value: 1,
-                icon: LucideIcons.filter,
-                label: 'Filters',
-                extraBottomRadius: true,
-                ),
+              context: context,
+              value: 1,
+              icon: LucideIcons.filter,
+              label: 'Filters',
+              extraBottomRadius: true,
+            ),
           ),
         ],
       ),
@@ -1172,6 +1172,130 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
 
   Future<void> cancelReplyItem() async {
     setState(() => replyOnItem = null);
+  }
+
+  // ── Reply thread overlay ──────────────────────────────────────────────────
+  void _showReplyThreadOverlay(BuildContext context, ModelItem item) {
+    // Build the chain: walk back through replyOn references
+    final List<ModelItem> chain = [];
+    ModelItem? cursor = item;
+    while (cursor != null) {
+      chain.insert(0, cursor);
+      cursor = cursor.replyOn;
+    }
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Reply thread',
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      transitionDuration: const Duration(milliseconds: 200),
+      transitionBuilder: (context, animation, _, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+          child: FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (context, animation, _) {
+        final cs = Theme.of(context).colorScheme;
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Drag handle
+                    Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(top: 12, bottom: 8),
+                      decoration: BoxDecoration(
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Thread',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: () => Navigator.of(context).pop(),
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: cs.onSurface.withValues(alpha: 0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                LucideIcons.x,
+                                size: 16,
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Thread bubbles
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        itemCount: chain.length,
+                        itemBuilder: (context, index) {
+                          final chainItem = chain[index];
+                          final isLast = index == chain.length - 1;
+                          return _ThreadBubble(
+                            item: chainItem,
+                            isLast: isLast,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              fetchItems(chainItem.id);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ), // SafeArea
+            ), // Material
+          ),
+        );
+      },
+    );
   }
 
   Future<void> showHideScrollToBottomButton(double scrolledHeight) async {
@@ -1314,77 +1438,93 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                                             showItemId == item.id)
                                     ? cs.onSurface.withValues(alpha: 0.1)
                                     : Colors.transparent,
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Container(
-                                  margin: EdgeInsets.only(
-                                      top: 2,
-                                      bottom: 2,
-                                      right: 12,
-                                      left: isAttachment ? 0 : 12,
-                                    ),
-                                    child: Material(
-                                      shape: RoundedRectangleBorder(
-                                       borderRadius: BorderRadius.circular(16),
-                                        side: BorderSide(
-                                          color:
-                                              (showNoteBorder && !isAttachment)
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    // ── Reply quote bubble ──────────────────
+                                    if (item.replyOn != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                            left: 12, right: 12, top: 2),
+                                        child: Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: ReplyQuoteBubble(
+                                            replyOn: item.replyOn!,
+                                            onTap: () =>
+                                                _showReplyThreadOverlay(
+                                                    context, item),
+                                          ),
+                                        ),
+                                      ),
+                                    // ── Main bubble ────────────────────────
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Container(
+                                        margin: EdgeInsets.only(
+                                          top: item.replyOn != null ? 0 : 2,
+                                          bottom: 2,
+                                          right: 12,
+                                          left: 12,
+                                        ),
+                                        child: Material(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            side: BorderSide(
+                                              color: (showNoteBorder &&
+                                                      !isAttachment)
                                                   ? cs.onSurface
                                                       .withValues(alpha: 0.1)
                                                   : Colors.transparent,
-                                          width: 0.5,
-                                        ),
-                                      ),
-                                      color: isAttachment
-                                          ? Colors.transparent
-                                          : cs.onSurface
-                                              .withValues(alpha: 0.07),
-                                      child: Container(
-                                        margin: EdgeInsets.symmetric(
-                                            vertical: isAttachment ? 2 : 8,
-                                            horizontal: isAttachment ? 0 : 8),
-                                        padding: EdgeInsets.all(
-                                            isAttachment ? 0 : 6),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            if (item.replyOn != null)
-                                              GestureDetector(
-                                                onTap: () => fetchItems(
-                                                    item.replyOn!.id),
-                                                child: NotePreviewSummary(
-                                                  item: item.replyOn!,
-                                                  showImagePreview: true,
-                                                  expanded: false,
-                                                ),
-                                              ),
-                                            if (urlInfo != null)
-                                              GestureDetector(
-                                                onTap: () async {
-                                                  if (_hasNotesSelected) {
-                                                    onItemTapped(item);
-                                                  } else {
-                                                    final linkUri = Uri.parse(
-                                                        urlInfo["url"]);
-                                                    if (await canLaunchUrl(
-                                                        linkUri)) {
-                                                      await launchUrl(linkUri);
-                                                    }
-                                                  }
-                                                },
-                                                child: NoteUrlPreview(
-                                                  urlInfo: urlInfo,
-                                                  imageDirectory: imageDirPath,
-                                                  itemId: item.id!,
-                                                ),
-                                              ),
-                                            _buildNoteItem(item),
-                                          ],
+                                              width: 0.5,
+                                            ),
+                                          ),
+                                          color: isAttachment
+                                              ? Colors.transparent
+                                              : cs.onSurface
+                                                  .withValues(alpha: 0.07),
+                                          child: Container(
+                                            margin: EdgeInsets.symmetric(
+                                                vertical: isAttachment ? 2 : 8,
+                                                horizontal:
+                                                    isAttachment ? 0 : 8),
+                                            padding: EdgeInsets.all(
+                                                isAttachment ? 0 : 6),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                if (urlInfo != null)
+                                                  GestureDetector(
+                                                    onTap: () async {
+                                                      if (_hasNotesSelected) {
+                                                        onItemTapped(item);
+                                                      } else {
+                                                        final linkUri =
+                                                            Uri.parse(
+                                                                urlInfo["url"]);
+                                                        if (await canLaunchUrl(
+                                                            linkUri)) {
+                                                          await launchUrl(
+                                                              linkUri);
+                                                        }
+                                                      }
+                                                    },
+                                                    child: NoteUrlPreview(
+                                                      urlInfo: urlInfo,
+                                                      imageDirectory:
+                                                          imageDirPath,
+                                                      itemId: item.id!,
+                                                    ),
+                                                  ),
+                                                _buildNoteItem(item),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -1680,27 +1820,47 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                       children: [
                         if (replyOnItem != null)
                           Container(
-                            padding: const EdgeInsets.all(4),
-                            margin: const EdgeInsets.only(bottom: 4),
+                            margin: const EdgeInsets.only(bottom: 6),
                             decoration: BoxDecoration(
-                              color: cs.onSurface.withValues(alpha: 0.06),
-                              borderRadius: BorderRadius.circular(10),
+                              color: cs.onSurface.withValues(alpha: 0.04),
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(12),
+                                bottomRight: Radius.circular(12),
+                              ),
+                              border: Border.all(
+                                color: cs.onSurface.withValues(alpha: 0.1),
+                                width: 0.75,
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: NotePreviewSummary(
-                                    item: replyOnItem!,
-                                    showImagePreview: true,
-                                    expanded: true,
+                            child: IntrinsicHeight(
+                              child: Row(
+                                children: [
+                                  // Left accent bar — square left, no radius
+                                  Container(
+                                    width: 3,
+                                    color: cs.primary.withValues(alpha: 0.7),
                                   ),
-                                ),
-                                IconButton(
-                                  tooltip: "Cancel reply",
-                                  icon: const Icon(LucideIcons.x),
-                                  onPressed: cancelReplyItem,
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 8, horizontal: 4),
+                                      child: NotePreviewSummary(
+                                        item: replyOnItem!,
+                                        showImagePreview: true,
+                                        expanded: true,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: "Cancel reply",
+                                    icon: const Icon(LucideIcons.x, size: 16),
+                                    color: cs.onSurfaceVariant
+                                        .withValues(alpha: 0.6),
+                                    onPressed: cancelReplyItem,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         TextField(
@@ -1739,6 +1899,68 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                             ),
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 10),
+                            suffixIcon: GestureDetector(
+                              onLongPress: () async {
+                                if (!_isTyping) {
+                                  _recordtooltipKey.currentState
+                                      ?.ensureTooltipVisible();
+                                  await Future.delayed(
+                                      const Duration(seconds: 1), () {
+                                    if (mounted) Tooltip.dismissAllToolTips();
+                                  });
+                                }
+                                if (!_isTyping && !_isRecording) {
+                                  await _startRecording();
+                                }
+                              },
+                              onTap: () async {
+                                if (_isRecording) {
+                                  await _stopRecording();
+                                } else if (_isTyping) {
+                                  _handleTextInput(_textController.text);
+                                } else {
+                                  if (mounted) {
+                                    displaySnackBar(context,
+                                        message: 'Hold to start recording.',
+                                        seconds: 1);
+                                  }
+                                }
+                              },
+                              child: Tooltip(
+                                message:
+                                    _isTyping ? "Add note" : "Record audio",
+                                key: _recordtooltipKey,
+                                triggerMode: TooltipTriggerMode.manual,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 200),
+                                    transitionBuilder: (child, animation) =>
+                                        ScaleTransition(
+                                            scale: animation, child: child),
+                                    child: Icon(
+                                      key: ValueKey<String>(_isRecording
+                                          ? 'stop'
+                                          : _isTyping
+                                              ? _isCreatingTask
+                                                  ? 'check'
+                                                  : 'send'
+                                              : 'mic'),
+                                      _isRecording
+                                          ? Icons.stop
+                                          : _isTyping
+                                              ? _isCreatingTask
+                                                  ? Icons.check
+                                                  : Icons.send
+                                              : Icons.mic,
+                                      size: 20,
+                                      color: cs.onSurfaceVariant
+                                          .withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                           onChanged: _onInputTextChanged,
                           scrollController: ScrollController(),
@@ -1746,74 +1968,6 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                         ),
                       ],
                     ),
-            ),
-            const SizedBox(width: 6),
-            // Send / record button
-            GestureDetector(
-              onLongPress: () async {
-                if (!_isTyping) {
-                  _recordtooltipKey.currentState?.ensureTooltipVisible();
-                  await Future.delayed(const Duration(seconds: 1), () {
-                    if (mounted) Tooltip.dismissAllToolTips();
-                  });
-                }
-                if (!_isTyping && !_isRecording) await _startRecording();
-              },
-              onTap: () async {
-                if (_isRecording) {
-                  await _stopRecording();
-                } else if (_isTyping) {
-                  _handleTextInput(_textController.text);
-                } else {
-                  if (mounted) {
-                    displaySnackBar(context,
-                        message: 'Hold to start recording.', seconds: 1);
-                  }
-                }
-              },
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: cs.onSurface.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      transitionBuilder: (child, animation) =>
-                          ScaleTransition(scale: animation, child: child),
-                      child: Tooltip(
-                        message: _isTyping ? "Add note" : "Record/stop audio",
-                        key: _recordtooltipKey,
-                        triggerMode: TooltipTriggerMode.manual,
-                        child: Icon(
-                          key: ValueKey<String>(_isRecording
-                              ? 'stop'
-                              : _isTyping
-                                  ? _isCreatingTask
-                                      ? 'check'
-                                      : 'send'
-                                  : 'mic'),
-                          _isRecording
-                              ? Icons.stop
-                              : _isTyping
-                                  ? _isCreatingTask
-                                      ? Icons.check
-                                      : Icons.send
-                                  : Icons.mic,
-                          size: 20,
-                          color: cs.onSurface,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ),
           ],
         ),
@@ -1920,6 +2074,190 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Thread connector painter ──────────────────────────────────────────────────
+class _ThreadConnectorPainter extends CustomPainter {
+  final bool alignLeft;
+  final Color color;
+
+  const _ThreadConnectorPainter({required this.alignLeft, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Straight vertical connector centred under whichever side the bubble is on
+    const double xOffset = 20.0;
+    final double x = alignLeft ? xOffset : size.width - xOffset;
+
+    canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+  }
+
+  @override
+  bool shouldRepaint(_ThreadConnectorPainter old) =>
+      old.alignLeft != alignLeft || old.color != color;
+}
+
+class _ThreadBubble extends StatelessWidget {
+  final ModelItem item;
+  final bool isLast;
+  final VoidCallback onTap;
+
+  const _ThreadBubble({
+    required this.item,
+    required this.isLast,
+    required this.onTap,
+  });
+
+  String _getText() {
+    switch (item.type) {
+      case ItemType.text:
+        return item.text;
+      case ItemType.image:
+        return '🖼 Image';
+      case ItemType.video:
+        return '🎬 Video';
+      case ItemType.audio:
+        return '🎵 Audio';
+      case ItemType.document:
+        return '📄 Document';
+      case ItemType.contact:
+        return '👤 Contact';
+      case ItemType.location:
+        return '📍 Location';
+      case ItemType.task:
+      case ItemType.completedTask:
+        return item.text;
+      default:
+        return 'Message';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final hasThumbnail = item.thumbnail != null &&
+        (item.type == ItemType.image ||
+            item.type == ItemType.video ||
+            item.type == ItemType.contact);
+
+    // isLast = the most recent reply (align right as "your message")
+    // !isLast = the original message being replied TO (align left as "quoted")
+    final alignLeft = !isLast;
+
+    return Column(
+      crossAxisAlignment:
+          alignLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.75,
+            ),
+            margin: EdgeInsets.only(
+              left: alignLeft ? 0 : 40,
+              right: alignLeft ? 40 : 0,
+            ),
+            child: IntrinsicHeight(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: alignLeft
+                      ? cs.onSurface.withValues(alpha: 0.04)
+                      : cs.onSurface.withValues(alpha: 0.07),
+                  borderRadius: alignLeft
+                      ? const BorderRadius.only(
+                          topRight: Radius.circular(16),
+                          bottomRight: Radius.circular(16),
+                        )
+                      : BorderRadius.circular(16),
+                  border: Border.all(
+                    color:
+                        cs.onSurface.withValues(alpha: alignLeft ? 0.1 : 0.12),
+                    width: 0.75,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Left accent bar for quoted message (left-aligned)
+                    if (alignLeft)
+                      Container(
+                        width: 3,
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.6),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(0),
+                            topLeft: Radius.circular(0),
+                          ),
+                        ),
+                      ),
+                    // Content
+                    Flexible(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: alignLeft ? 10 : 14,
+                          right: 14,
+                          top: 10,
+                          bottom: 10,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _getText(),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: cs.onSurface.withValues(alpha: 0.85),
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                            ),
+                            if (hasThumbnail) ...[
+                              const SizedBox(width: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  item.thumbnail!,
+                                  width: 44,
+                                  height: 44,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // connector line between bubbles
+        if (!isLast)
+          SizedBox(
+            height: 20,
+            child: CustomPaint(
+              painter: _ThreadConnectorPainter(
+                alignLeft: alignLeft,
+                color: cs.onSurface.withValues(alpha: 0.25),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

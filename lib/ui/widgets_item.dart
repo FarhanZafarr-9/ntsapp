@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:ntsapp/utils/enums.dart';
@@ -808,6 +809,129 @@ class ItemWidgetContact extends StatelessWidget {
   }
 }
 
+// ── Reply quote bubble — shown above the reply as a separate left-aligned bubble
+class ReplyQuoteBubble extends StatelessWidget {
+  final ModelItem replyOn;
+  final VoidCallback onTap;
+
+  const ReplyQuoteBubble({
+    super.key,
+    required this.replyOn,
+    required this.onTap,
+  });
+
+  String _getPreviewText() {
+    switch (replyOn.type) {
+      case ItemType.text:
+        return replyOn.text;
+      case ItemType.image:
+        return '🖼 Image';
+      case ItemType.video:
+        return '🎬 Video';
+      case ItemType.audio:
+        return '🎵 Audio';
+      case ItemType.document:
+        return '📄 Document';
+      case ItemType.contact:
+        return '👤 Contact';
+      case ItemType.location:
+        return '📍 Location';
+      case ItemType.task:
+      case ItemType.completedTask:
+        return replyOn.text;
+      default:
+        return 'Message';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final hasThumbnail = replyOn.thumbnail != null &&
+        (replyOn.type == ItemType.image ||
+            replyOn.type == ItemType.video ||
+            replyOn.type == ItemType.contact);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Quote bubble ──────────────────────────────────────────────
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 260),
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.04),
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(14),
+                bottomRight: Radius.circular(14),
+              ),
+              border: Border.all(
+                color: cs.onSurface.withValues(alpha: 0.1),
+                width: 0.75,
+              ),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // left accent bar — no radius, left side of bubble is square
+                  Container(
+                    width: 3,
+                    color: cs.primary.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(width: 8),
+                  // text
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 4),
+                      child: Text(
+                        _getPreviewText(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // thumbnail if available
+                  if (hasThumbnail) ...[
+                    const SizedBox(width: 6),
+                    Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          replyOn.thumbnail!,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ] else
+                    const SizedBox(width: 8),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // ── Connector: drops down then bends right toward the bubble ──
+        CustomPaint(
+          size: const Size(60, 14),
+          painter: _ReplyConnectorPainter(
+            color: cs.onSurface.withValues(alpha: 0.2),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class NotePreviewSummary extends StatelessWidget {
   final ModelItem? item;
   final bool? showImagePreview;
@@ -1201,4 +1325,35 @@ class _NoteUrlPreviewState extends State<NoteUrlPreview> {
       ),
     );
   }
+}
+
+// ── Reply connector painter ───────────────────────────────────────────────────
+/// Draws a short vertical drop that curves rightward, visually connecting
+/// the quote bubble above to the reply bubble below.
+class _ReplyConnectorPainter extends CustomPainter {
+  final Color color;
+  const _ReplyConnectorPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = ui.Path()
+      ..moveTo(12, 0)
+      ..lineTo(12, size.height * 0.55)
+      ..quadraticBezierTo(
+        12,
+        size.height,
+        28,
+        size.height,
+      );
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_ReplyConnectorPainter old) => old.color != color;
 }
