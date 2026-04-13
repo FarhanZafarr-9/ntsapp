@@ -21,6 +21,7 @@ import 'package:ntsapp/services/service_events.dart';
 import 'package:ntsapp/services/service_logger.dart';
 import 'package:ntsapp/storage/storage_secure.dart';
 import 'package:ntsapp/storage/storage_sqlite.dart';
+import 'package:ntsapp/ui/widgets_loading.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -181,16 +182,34 @@ void showProcessingDialog(BuildContext context) {
     barrierDismissible: false,
     builder: (BuildContext context) {
       return Dialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        elevation: 0,
         shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-        child: const Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Row(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(28.0)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 24.0),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text("Processing...", style: TextStyle(fontSize: 18)),
+              const ShapeShifterLoader(size: 48),
+              const SizedBox(height: 24),
+              Text(
+                "Processing",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Please wait a moment...",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
         ),

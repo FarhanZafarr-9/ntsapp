@@ -518,7 +518,9 @@ class _PageCategoryGroupsState extends State<PageCategoryGroups> {
               navigateToGroupAddEdit(null, category);
             }
           },
-          shape: const CircleBorder(),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Icon(_isReordering ? LucideIcons.check : LucideIcons.plus),
         ),
       ),

@@ -775,6 +775,15 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _cancelRecording() async {
+    _recordingTimer?.cancel();
+    await _audioRecorder.cancel();
+    setState(() {
+      _isRecording = false;
+      _recordingState = 0;
+    });
+  }
+
   void addToContacts(ModelItem item) {
     if (_hasNotesSelected) onItemTapped(item);
   }
@@ -1762,11 +1771,13 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
       case ItemType.text:
         return ItemWidgetText(item: item);
       case ItemType.image:
-        return ItemWidgetImage(item: item, onTap: viewImageVideo);
+        return ItemWidgetImage(
+            item: item, onTap: viewImageVideo, showBorder: showNoteBorder);
       case ItemType.video:
-        return ItemWidgetVideo(item: item, onTap: viewImageVideo);
+        return ItemWidgetVideo(
+            item: item, onTap: viewImageVideo, showBorder: showNoteBorder);
       case ItemType.audio:
-        return ItemWidgetAudio(item: item);
+        return ItemWidgetAudio(item: item, showBorder: showNoteBorder);
       case ItemType.document:
         return ItemWidgetDocument(
             item: item, onTap: openDocument, showBorder: showNoteBorder);
@@ -1842,28 +1853,62 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
   }
 
   Widget _buildRecordingSection() {
+    final cs = Theme.of(context).colorScheme;
     final controller = IOS7SiriWaveformController(
       amplitude: 0.5,
-      color: Colors.red,
+      color: cs.primary,
       frequency: 4,
       speed: 0.10,
     );
-    return Padding(
-      padding: const EdgeInsets.all(5.0),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          IconButton(
+            onPressed: _cancelRecording,
+            icon: Icon(LucideIcons.trash2,
+                size: 20, color: cs.error.withValues(alpha: 0.7)),
+            tooltip: "Cancel",
+          ),
+          const SizedBox(width: 4),
           TimerWidget(runningState: _recordingState),
-          if (_recordingState == 1)
-            Flexible(
-              child: SiriWaveform.ios7(
-                controller: controller,
-                options: const IOS7SiriWaveformOptions(height: 40),
-              ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: _recordingState == 1
+                  ? SiriWaveform.ios7(
+                      controller: controller,
+                      options: const IOS7SiriWaveformOptions(height: 40),
+                    )
+                  : Center(
+                      child: Container(
+                        height: 2,
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        color: cs.onSurface.withValues(alpha: 0.1),
+                      ),
+                    ),
             ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             onPressed: _pauseResumeRecording,
-            icon: Icon(_recordingState == 1 ? Icons.pause : Icons.play_arrow),
+            icon: Icon(
+              _recordingState == 1 ? Icons.pause : Icons.play_arrow,
+              color: cs.primary,
+            ),
+            tooltip: _recordingState == 1 ? "Pause" : "Resume",
+          ),
+          IconButton(
+            onPressed: _stopRecording,
+            icon: Icon(LucideIcons.send, color: cs.primary),
+            tooltip: "Send",
           ),
         ],
       ),
@@ -2039,6 +2084,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                           minLines: 1,
                           keyboardType: TextInputType.multiline,
                           textCapitalization: TextCapitalization.sentences,
+                          textAlignVertical: TextAlignVertical.center,
                           onSubmitted: _handleTextInput,
                           style: TextStyle(color: cs.onSurface),
                           decoration: InputDecoration(
@@ -2058,16 +2104,14 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(22),
-                              borderSide: BorderSide(
-                                  color: cs.onSurface.withValues(alpha: 0.15),
-                                  width: 0.75),
+                              borderSide: BorderSide.none,
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(22),
                               borderSide: BorderSide.none,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
+                                horizontal: 16, vertical: 12),
                             suffixIcon: GestureDetector(
                               onLongPress: () async {
                                 if (!_isTyping) {
@@ -2133,7 +2177,6 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                           ),
                           onChanged: _onInputTextChanged,
                           scrollController: ScrollController(),
-                          textAlignVertical: TextAlignVertical.top,
                         ),
                       ],
                     ),
@@ -2386,4 +2429,9 @@ class _ThreadBubble extends StatelessWidget {
                 alignLeft: alignLeft,
                 color: cs.onSurface.withValues(alpha: 0.25),
               ),
-       
+            ),
+          ),
+      ],
+    );
+  }
+}

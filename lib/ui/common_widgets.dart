@@ -47,23 +47,6 @@ class MessageInCenter extends StatelessWidget {
   }
 }
 
-class Loading extends StatelessWidget {
-  const Loading({
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-        ],
-      ),
-    );
-  }
-}
 
 class FloatingActionButtonWithBadge extends StatelessWidget {
   final int filterCount;
@@ -480,8 +463,12 @@ class _WidgetMediaKitThumbnailState extends State<WidgetMediaKitThumbnail> {
 
 class WidgetAudio extends StatefulWidget {
   final ModelItem item;
-
-  const WidgetAudio({super.key, required this.item});
+  final bool showBorder;
+  const WidgetAudio({
+    super.key,
+    required this.item,
+    this.showBorder = true,
+  });
 
   @override
   State<WidgetAudio> createState() => _WidgetAudioState();
@@ -594,6 +581,7 @@ class _WidgetAudioState extends State<WidgetAudio> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     bool displayDownloadButton =
         widget.item.state == SyncState.downloadable.value;
 
@@ -602,54 +590,114 @@ class _WidgetAudioState extends State<WidgetAudio> {
     double sliderValue =
         min(max(_currentPosition.inMilliseconds.toDouble(), 0.0), sliderMax);
 
-    return Row(
-      children: [
-        displayDownloadButton
-            ? DownloadButton(
-                onPressed: downloadMedia,
-                item: widget.item,
-                iconSize: 30,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.secondary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: widget.showBorder
+            ? Border.all(
+                color: cs.secondary.withValues(alpha: 0.15),
+                width: 0.75,
               )
-            : IconButton(
-                tooltip: "Play/pause",
-                icon: Icon(
-                  _isPlaying ? Icons.pause_circle : Icons.play_circle,
-                  size: 40,
-                ),
-                onPressed: _togglePlayPause,
+            : null,
+      ),
+      child: Row(
+        children: [
+          // Boxed Play/Pause button
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: cs.secondary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: cs.secondary.withValues(alpha: 0.2),
+                width: 0.75,
               ),
-        Expanded(
-          child: Slider(
-            activeColor: Theme.of(context).colorScheme.primary,
-            inactiveColor:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
-            min: 0,
-            max: sliderMax,
-            value: sliderValue,
-            onChanged: (value) async {
-              // Seek to the new position in the audio
-              Duration newPosition = Duration(milliseconds: value.toInt());
-              await _audioPlayer.seek(newPosition);
-
-              // Update position immediately for more responsive UI
-              if (mounted) {
-                setState(() {
-                  _currentPosition = newPosition;
-                });
-              }
-            },
+            ),
+            child: displayDownloadButton
+                ? DownloadButton(
+                    onPressed: downloadMedia,
+                    item: widget.item,
+                    iconSize: 22,
+                  )
+                : IconButton(
+                    tooltip: "Play/pause",
+                    padding: EdgeInsets.zero,
+                    style: IconButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: Icon(
+                      _isPlaying ? Icons.pause : Icons.play_arrow,
+                      size: 24,
+                      color: cs.secondary,
+                    ),
+                    onPressed: _togglePlayPause,
+                  ),
           ),
-        ),
-        Text(
-          _currentPosition > Duration.zero
-              ? mediaFileDurationFromSeconds(
-                  max(0, _totalDuration.inSeconds - _currentPosition.inSeconds))
-              : mediaFileDurationFromSeconds(_totalDuration.inSeconds),
-          style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 3,
+                    thumbShape:
+                        const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    overlayShape:
+                        const RoundSliderOverlayShape(overlayRadius: 14),
+                    activeTrackColor: cs.secondary,
+                    inactiveTrackColor: cs.secondary.withValues(alpha: 0.15),
+                    thumbColor: cs.secondary,
+                    overlayColor: cs.secondary.withValues(alpha: 0.12),
+                  ),
+                  child: Slider(
+                    min: 0,
+                    max: sliderMax,
+                    value: sliderValue,
+                    onChanged: (value) async {
+                      Duration newPosition =
+                          Duration(milliseconds: value.toInt());
+                      await _audioPlayer.seek(newPosition);
+                      if (mounted) {
+                        setState(() {
+                          _currentPosition = newPosition;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        mediaFileDurationFromSeconds(_currentPosition.inSeconds),
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: cs.secondary.withValues(alpha: 0.7)),
+                      ),
+                      Text(
+                        mediaFileDurationFromSeconds(_totalDuration.inSeconds),
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -668,8 +716,10 @@ Widget widgetAudioDetails(ModelItem item) {
 class WidgetTextWithLinks extends StatefulWidget {
   final String text;
   final TextAlign? align;
+  final bool isCompleted;
 
-  const WidgetTextWithLinks({super.key, required this.text, this.align});
+  const WidgetTextWithLinks(
+      {super.key, required this.text, this.align, this.isCompleted = false});
 
   @override
   State<WidgetTextWithLinks> createState() => _WidgetTextWithLinksState();
@@ -706,22 +756,31 @@ class _WidgetTextWithLinksState extends State<WidgetTextWithLinks> {
       if (start > lastMatchEnd) {
         spans.add(
           TextSpan(
-              text: text.substring(lastMatchEnd, start),
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: controller.getScaledSize(fontSize))),
+            text: text.substring(lastMatchEnd, start),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: controller.getScaledSize(fontSize),
+              decoration:
+                  widget.isCompleted ? TextDecoration.lineThrough : null,
+            ),
+          ),
         );
       }
 
       // Add the link text
       final linkText = text.substring(start, end);
       try {
+        final TextStyle linkStyle = TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontSize: controller.getScaledSize(fontSize),
+          fontWeight: FontWeight.w600,
+          decoration: widget.isCompleted ? TextDecoration.lineThrough : null,
+        );
+
         final linkUri = Uri.parse(linkText);
         spans.add(TextSpan(
           text: linkText,
-          style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontSize: controller.getScaledSize(fontSize)),
+          style: linkStyle,
           recognizer: TapGestureRecognizer()
             ..onTap = () async {
               if (await canLaunchUrl(linkUri)) {
@@ -736,10 +795,14 @@ class _WidgetTextWithLinksState extends State<WidgetTextWithLinks> {
       } catch (e) {
         spans.add(
           TextSpan(
-              text: linkText,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: controller.getScaledSize(fontSize))),
+            text: linkText,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: controller.getScaledSize(fontSize),
+              decoration:
+                  widget.isCompleted ? TextDecoration.lineThrough : null,
+            ),
+          ),
         );
       }
 
@@ -749,11 +812,13 @@ class _WidgetTextWithLinksState extends State<WidgetTextWithLinks> {
     // Add the remaining plain text after the last link
     if (lastMatchEnd < text.length) {
       spans.add(TextSpan(
-          text: text.substring(lastMatchEnd),
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontSize: controller.getScaledSize(fontSize),
-          )));
+        text: text.substring(lastMatchEnd),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface,
+          fontSize: controller.getScaledSize(fontSize),
+          decoration: widget.isCompleted ? TextDecoration.lineThrough : null,
+        ),
+      ));
     }
 
     return spans;
@@ -1295,14 +1360,19 @@ class _DownloadButtonState extends State<DownloadButton> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: Theme.of(context).colorScheme.onSurface.withAlpha(50),
-          width: 2.0,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15),
+          width: 0.75,
         ),
       ),
       child: IconButton(
         tooltip: "Download",
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
         icon: Opacity(
           opacity: 0.5,
           child: Icon(

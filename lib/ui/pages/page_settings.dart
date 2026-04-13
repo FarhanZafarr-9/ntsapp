@@ -363,7 +363,7 @@ class SettingsPageState extends State<SettingsPage> {
           _buildSectionHeader("Appearance"),
           _buildSettingsGroup([
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.sunMoon, Colors.orange),
+              leading: _buildLeadingIcon(LucideIcons.sunMoon, cs.secondary),
               title: const Text("Theme"),
               subtitle: Text(widget.isDarkMode ? "Dark Mode" : "Light Mode"),
               trailing: Switch(
@@ -373,7 +373,7 @@ class SettingsPageState extends State<SettingsPage> {
               onTap: widget.onThemeToggle,
             ),
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.palette, Colors.blue),
+              leading: _buildLeadingIcon(LucideIcons.palette, cs.primary),
               title: const Text("Dynamic Coloring"),
               subtitle: const Text("Wallpaper colors (Material You)"),
               trailing: Switch(
@@ -448,7 +448,7 @@ class SettingsPageState extends State<SettingsPage> {
                 ),
               ),
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.type, Colors.green),
+              leading: _buildLeadingIcon(LucideIcons.type, cs.tertiary),
               title: const Text("Font Size"),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -519,7 +519,7 @@ class SettingsPageState extends State<SettingsPage> {
           _buildSectionHeader("General"),
           _buildSettingsGroup([
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.timer, Colors.amber),
+              leading: _buildLeadingIcon(LucideIcons.timer, cs.primary),
               title: const Text('Time Format'),
               trailing: DropdownButton<String>(
                 value: timeFormat,
@@ -533,7 +533,7 @@ class SettingsPageState extends State<SettingsPage> {
               ),
             ),
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.shieldCheck, Colors.red),
+              leading: _buildLeadingIcon(LucideIcons.shieldCheck, cs.error),
               title: const Text("App Lock"),
               subtitle: const Text("Biometric or pattern lock"),
               trailing: Switch(
@@ -550,14 +550,14 @@ class SettingsPageState extends State<SettingsPage> {
             _buildSettingsGroup([
               _SettingsTile(
                 leading: _buildLeadingIcon(
-                    LucideIcons.databaseBackup, Colors.purple),
+                    LucideIcons.databaseBackup, cs.secondary),
                 title: const Text('Backup Data'),
                 subtitle: const Text("Export your notes as zip"),
                 trailing: _buildTrailingChevron(),
                 onTap: createDownloadBackup,
               ),
               _SettingsTile(
-                leading: _buildLeadingIcon(LucideIcons.rotateCcw, Colors.blue),
+                leading: _buildLeadingIcon(LucideIcons.rotateCcw, cs.primary),
                 title: const Text('Restore Data'),
                 subtitle: const Text("Import from backup zip"),
                 trailing: _buildTrailingChevron(),
@@ -570,33 +570,34 @@ class SettingsPageState extends State<SettingsPage> {
           _buildSectionHeader("About"),
           _buildSettingsGroup([
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.gitFork, Colors.purple),
+              leading: _buildLeadingIcon(LucideIcons.gitFork, cs.secondary),
               title: const Text('Fork Repository'),
               subtitle: const Text('Modern evolution with Material You'),
               trailing: _buildTrailingChevron(),
               onTap: _openForkRepo,
             ),
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.github, Colors.grey),
+              leading:
+                  _buildLeadingIcon(LucideIcons.github, cs.onSurfaceVariant),
               title: const Text('Original Repository'),
               subtitle: const Text('By jeerovan'),
               trailing: _buildTrailingChevron(),
               onTap: _openOriginalRepo,
             ),
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.bookOpen, Colors.blue),
+              leading: _buildLeadingIcon(LucideIcons.bookOpen, cs.primary),
               title: const Text("What's New in This Fork"),
               trailing: _buildTrailingChevron(),
               onTap: _showChangelog,
             ),
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.star, Colors.orange),
+              leading: _buildLeadingIcon(LucideIcons.star, cs.tertiary),
               title: const Text('Original App (Play Store)'),
               trailing: _buildTrailingChevron(),
               onTap: _redirectToOriginalPlayStore,
             ),
             _SettingsTile(
-              leading: _buildLeadingIcon(LucideIcons.list, Colors.blueGrey),
+              leading: _buildLeadingIcon(LucideIcons.list, cs.primary),
               title: const Text("Developer Logging"),
               trailing: Switch(
                 value: loggingEnabled,

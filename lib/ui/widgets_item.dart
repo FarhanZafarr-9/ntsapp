@@ -183,32 +183,40 @@ class ItemWidgetTask extends StatefulWidget {
 class _ItemWidgetTaskState extends State<ItemWidgetTask> {
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Flexible(child: WidgetTextWithLinks(text: widget.item.text)),
-            const SizedBox(width: 8),
-            Icon(
-              widget.item.type == ItemType.completedTask
-                  ? Icons.check_circle
-                  : Icons.radio_button_unchecked,
-              color: widget.item.type == ItemType.task
-                  ? Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant
-                      .withValues(alpha: 0.5)
-                  : Theme.of(context).colorScheme.primary,
-            ),
-          ],
-        ),
-        WidgetTimeStampPinnedStarred(item: widget.item),
-        WidgetPinnedStarredPills(item: widget.item),
-      ],
+    final bool isCompleted = widget.item.type == ItemType.completedTask;
+
+    return Opacity(
+      opacity: isCompleted ? 0.6 : 1.0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
+                child: WidgetTextWithLinks(
+                  text: widget.item.text,
+                  isCompleted: isCompleted,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: isCompleted
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.5),
+              ),
+            ],
+          ),
+          WidgetTimeStampPinnedStarred(item: widget.item),
+          WidgetPinnedStarredPills(item: widget.item),
+        ],
+      ),
     );
   }
 }
@@ -216,10 +224,13 @@ class _ItemWidgetTaskState extends State<ItemWidgetTask> {
 class ItemWidgetImage extends StatefulWidget {
   final ModelItem item;
   final Function(ModelItem) onTap;
+  final bool showBorder;
+
   const ItemWidgetImage({
     super.key,
     required this.item,
     required this.onTap,
+    this.showBorder = true,
   });
 
   @override
@@ -377,11 +388,13 @@ class _ItemWidgetImageState extends State<ItemWidgetImage> {
 class ItemWidgetVideo extends StatefulWidget {
   final ModelItem item;
   final Function(ModelItem) onTap;
+  final bool showBorder;
 
   const ItemWidgetVideo({
     super.key,
     required this.item,
     required this.onTap,
+    this.showBorder = true,
   });
 
   @override
@@ -423,28 +436,42 @@ class _ItemWidgetVideoState extends State<ItemWidgetVideo> {
       },
       child: Column(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: SizedBox(
-              width: size,
-              height: size / widget.item.data!["aspect"],
-              child: widget.item.thumbnail == null
-                  ? canUseVideoPlayer
-                      ? WidgetVideoPlayerThumbnail(
-                          onPressed: downloadMedia,
-                          item: widget.item,
-                          iconSize: 50,
-                        )
-                      : WidgetMediaKitThumbnail(
-                          onPressed: downloadMedia,
-                          item: widget.item,
-                          iconSize: 50,
-                        )
-                  : WidgetVideoImageThumbnail(
-                      onPressed: downloadMedia,
-                      item: widget.item,
-                      iconSize: 50,
-                    ),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: widget.showBorder
+                  ? Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.15),
+                      width: 0.75,
+                    )
+                  : null,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: SizedBox(
+                width: size,
+                height: size / widget.item.data!["aspect"],
+                child: widget.item.thumbnail == null
+                    ? canUseVideoPlayer
+                        ? WidgetVideoPlayerThumbnail(
+                            onPressed: downloadMedia,
+                            item: widget.item,
+                            iconSize: 50,
+                          )
+                        : WidgetMediaKitThumbnail(
+                            onPressed: downloadMedia,
+                            item: widget.item,
+                            iconSize: 50,
+                          )
+                    : WidgetVideoImageThumbnail(
+                        onPressed: downloadMedia,
+                        item: widget.item,
+                        iconSize: 50,
+                      ),
+              ),
             ),
           ),
           SizedBox(
@@ -455,16 +482,21 @@ class _ItemWidgetVideoState extends State<ItemWidgetVideo> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Opacity(
-                        opacity: 0.6,
-                        child: const Icon(LucideIcons.video, size: 14)),
-                    const SizedBox(width: 3),
-                    Opacity(
-                      opacity: 0.6,
-                      child: Text(
-                        widget.item.data!["duration"],
-                        style: const TextStyle(fontSize: 10),
-                      ),
+                    Icon(LucideIcons.video,
+                        size: 14,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withValues(alpha: 0.6)),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.item.data!["duration"],
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant
+                              .withValues(alpha: 0.6)),
                     ),
                     const SizedBox(width: 4),
                     WidgetTimeStampPinnedStarred(item: widget.item),
@@ -482,9 +514,11 @@ class _ItemWidgetVideoState extends State<ItemWidgetVideo> {
 
 class ItemWidgetAudio extends StatefulWidget {
   final ModelItem item;
+  final bool showBorder;
   const ItemWidgetAudio({
     super.key,
     required this.item,
+    this.showBorder = true,
   });
 
   @override
@@ -497,7 +531,7 @@ class _ItemWidgetAudioState extends State<ItemWidgetAudio> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        WidgetAudio(item: widget.item),
+        WidgetAudio(item: widget.item, showBorder: widget.showBorder),
         widgetAudioDetails(widget.item),
       ],
     );
@@ -1081,9 +1115,9 @@ class NotePreviewSummary extends StatelessWidget {
                   _getMessageText(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis, // Ellipsis for long text
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               )

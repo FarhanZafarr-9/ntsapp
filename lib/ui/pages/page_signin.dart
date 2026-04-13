@@ -222,15 +222,13 @@ class _PageSigninState extends State<PageSignin> {
                               width:
                                   16, // Set width and height for the indicator
                               height: 16,
-                              child: CircularProgressIndicator(
-                                color: Colors.black,
-                                strokeWidth: 2, // Set color to white
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
                               ),
                             ),
                           ),
                         Text(
                           errorSendingOtp ? 'Retry' : 'Send OTP',
-                          style: TextStyle(color: Colors.black),
                         ),
                       ],
                     )),
@@ -265,15 +263,13 @@ class _PageSigninState extends State<PageSignin> {
                           child: SizedBox(
                             width: 16, // Set width and height for the indicator
                             height: 16,
-                            child: CircularProgressIndicator(
-                              color: Colors.black,
-                              strokeWidth: 2, // Set color to white
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
                             ),
                           ),
                         ),
                       Text(
                         errorVerifyingOtp ? 'Retry' : 'Verify OTP',
-                        style: TextStyle(color: Colors.black),
                       )
                     ])),
               Expanded(
