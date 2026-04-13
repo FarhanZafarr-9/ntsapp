@@ -160,15 +160,10 @@ class _PageMediaViewerState extends State<PageMediaViewer> {
     switch (item.type) {
       case ItemType.image: // image
         widget = fileAvailable
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: InteractiveViewer(
-                  maxScale: 3.5,
-                  child: Image.file(
-                    File(item.data!["path"]),
-                    fit: BoxFit.contain,
-                  ),
-                ),
+            ? WidgetImageViewer(
+                imagePath: item.data!["path"],
+                imgWidth: item.data!["width"]?.toDouble(),
+                imgHeight: item.data!["height"]?.toDouble(),
               )
             : item.thumbnail != null
                 ? ClipRRect(
@@ -203,6 +198,93 @@ class _PageMediaViewerState extends State<PageMediaViewer> {
     return widget;
   }
 }
+
+class WidgetImageViewer extends StatelessWidget {
+  final String imagePath;
+  final double? imgWidth;
+  final double? imgHeight;
+
+  const WidgetImageViewer({
+    super.key,
+    required this.imagePath,
+    this.imgWidth,
+    this.imgHeight,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (imgWidth != null &&
+            imgHeight != null &&
+            imgWidth! > 0 &&
+            imgHeight! > 0) {
+          final double heightFactor = imgHeight! / constraints.maxHeight;
+          final double widthFactor = imgWidth! / constraints.maxWidth;
+
+          // An image is exceptionally tall only if its height substantially exceeds the screen height (>= 1.5x)
+          // AND it naturally outstretches vertically much more than it does horizontally compared to the view.
+          bool isExceptionallyTall = heightFactor >= 1.5 && heightFactor >= widthFactor * 1.5;
+          bool isExceptionallyWide = widthFactor >= 1.5 && widthFactor >= heightFactor * 1.8;
+
+          // Exceptionally tall image (e.g., long screenshots) -> Scroll vertically 
+          if (isExceptionallyTall) {
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: InteractiveViewer(
+                constrained: false,
+                minScale: 0.1,
+                maxScale: 10.0,
+                boundaryMargin: EdgeInsets.zero,
+                child: SizedBox(
+                  width: constraints.maxWidth,
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.fitWidth,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          // Exceptionally wide image (e.g., panorama) -> Scroll horizontally
+          if (isExceptionallyWide) {
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: InteractiveViewer(
+                constrained: false,
+                minScale: 0.1,
+                maxScale: 10.0,
+                boundaryMargin: EdgeInsets.zero,
+                child: SizedBox(
+                  height: constraints.maxHeight,
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.fitHeight,
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+
+        // Regular proportion image
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: InteractiveViewer(
+            minScale: 1.0,
+            maxScale: 10.0,
+            child: Image.file(
+              File(imagePath),
+              fit: BoxFit.scaleDown,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 
 class WidgetVideoPlayer extends StatefulWidget {
   final String videoPath;

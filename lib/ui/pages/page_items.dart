@@ -363,6 +363,14 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
     });
   }
 
+  Future<void> _initializePageData() async {
+    await fetchItems(showItemId);
+    await loadImageDirectoryPath();
+    if (widget.sharedContents.isNotEmpty) {
+      await loadSharedContents();
+    }
+  }
+
   Future<void> loadSharedContents() async {
     List<String> sharedFiles = [];
     List<String> sharedTexts = [];
@@ -374,7 +382,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
         sharedTexts.add(sharedContent);
       }
     }
-    processFiles(sharedFiles);
+    await processFiles(sharedFiles);
     if (sharedTexts.isNotEmpty) {
       for (String text in sharedTexts) {
         _addItemToDbAndDisplayList(text, ItemType.text, null, null);
@@ -1463,9 +1471,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
         showItemId = widget.loadItemIdOnInit;
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        fetchItems(showItemId);
-        loadImageDirectoryPath();
-        if (widget.sharedContents.isNotEmpty) loadSharedContents();
+        _initializePageData();
       });
     }
 
