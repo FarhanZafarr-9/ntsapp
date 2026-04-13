@@ -109,6 +109,10 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
   bool _filtersEnabled = false;
   bool _shouldBlinkItem = false;
 
+  final Set<String> _fetchingItemIds = {};
+  final RegExp _linkRegExp = RegExp(r'(https?://[^\s]+)');
+
+
   @override
   void initState() {
     super.initState();
@@ -833,40 +837,80 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
   }
 
   Future<void> checkFetchUrlMetadata(ModelItem item) async {
-    final RegExp linkRegExp = RegExp(r'(https?://[^\s]+)');
-    final matches = linkRegExp.allMatches(item.text);
-    String link = "";
-    for (final match in matches) {
-      link = item.text.substring(match.start, match.end);
-      break;
-    }
-    if (link.isNotEmpty) {
+    if (item.id == null) return;
+    if (_fetchingItemIds.contains(item.id)) return;
+
+    final matches = _linkRegExp.allMatches(item.text);
+    final List<String> links = matches.map((m) => item.text.substring(m.start, m.end)).toSet().toList(); // Unique links
+
+    if (links.isNotEmpty) {
+      _fetchingItemIds.add(item.id!);
       try {
-        final Metadata? metaData = await MetadataFetch.extract(link);
-        if (metaData != null) {
-          int portrait = 1;
-          if (metaData.image != null) {
-            portrait =
-                await checkDownloadNetworkImage(item.id!, metaData.image!);
+        // Set loading state locally first for instant UI response
+        item.data = {...?item.data, "url_metadata_state": "loading"};
+        if (mounted) setState(() {});
+
+        // Then update DB (this will also trigger events now)
+        await item.update(["data"], pushToSync: false);
+
+        List<Map<String, dynamic>> urlInfoList = [];
+        int successCount = 0;
+
+        // Fetch up to 3 links to avoid overloading
+        for (int i = 0; i < links.length && i < 3; i++) {
+          final String link = links[i];
+          try {
+            // Added 15s timeout to prevent hanging
+            final Metadata? metaData = await MetadataFetch.extract(link).timeout(const Duration(seconds: 15));
+            if (metaData != null) {
+              int portrait = 1;
+              if (metaData.image != null) {
+                // Use base itemId for first link, and numbered ones for others
+                final String imageId = i == 0 ? item.id! : "${item.id}-$i";
+                portrait = await checkDownloadNetworkImage(imageId, metaData.image!);
+              }
+              urlInfoList.add({
+                "url": link,
+                "title": metaData.title,
+                "desc": metaData.description,
+                "image": metaData.image,
+                "portrait": portrait
+              });
+              successCount++;
+            }
+          } catch (e) {
+            logger.error("error fetching metadata for $link", error: e);
           }
-          Map<String, dynamic> urlInfo = {
-            "url": link,
-            "title": metaData.title,
-            "desc": metaData.description,
-            "image": metaData.image,
-            "portrait": portrait
-          };
-          item.data = {...?item.data, "url_info": urlInfo};
-          await item.update(["data"]);
-          if (mounted) setState(() {});
         }
+
+        if (successCount > 0) {
+          item.data = {
+            ...?item.data,
+            "url_info_list": urlInfoList,
+            "url_metadata_state": null // Success
+          };
+          item.data!["url_info"] = urlInfoList.first;
+        } else {
+          item.data = {...?item.data, "url_metadata_state": "error"};
+        }
+
+        await item.update(["data"]);
+        if (mounted) setState(() {});
       } catch (e) {
-        logger.error("error fetch metadata", error: e);
+        logger.error("error in checkFetchUrlMetadata", error: e);
+        item.data = {...?item.data, "url_metadata_state": "error"};
+        await item.update(["data"]);
+        if (mounted) setState(() {});
+      } finally {
+        _fetchingItemIds.remove(item.id);
       }
     } else {
+      // No links, clear existing info
       Map<String, dynamic>? data = item.data;
-      if (data != null && data.containsKey("url_info")) {
+      if (data != null && (data.containsKey("url_info") || data.containsKey("url_info_list"))) {
         data.remove("url_info");
+        data.remove("url_info_list");
+        data.remove("url_metadata_state");
         item.data = data;
         await item.update(["data"]);
         if (mounted) setState(() {});
@@ -1512,12 +1556,20 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                if (urlInfo != null)
+                                                if (urlInfo != null ||
+                                                    (item.data != null &&
+                                                        (item.data!.containsKey(
+                                                                "url_info_list") ||
+                                                            item.data!.containsKey(
+                                                                "url_metadata_state"))) ||
+                                                    _linkRegExp
+                                                        .hasMatch(item.text))
                                                   GestureDetector(
                                                     onTap: () async {
                                                       if (_hasNotesSelected) {
                                                         onItemTapped(item);
-                                                      } else {
+                                                      } else if (urlInfo !=
+                                                          null) {
                                                         final linkUri =
                                                             Uri.parse(
                                                                 urlInfo["url"]);
@@ -1530,9 +1582,25 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                                                     },
                                                     child: NoteUrlPreview(
                                                       urlInfo: urlInfo,
+                                                      urlInfoList: item.data?[
+                                                          "url_info_list"],
+                                                      urlMetadataState: item
+                                                                  .data?[
+                                                              "url_metadata_state"] ??
+                                                          (urlInfo == null &&
+                                                                  item.data?[
+                                                                          "url_info_list"] ==
+                                                                      null &&
+                                                                  _linkRegExp.hasMatch(
+                                                                      item.text)
+                                                              ? "none"
+                                                              : null),
                                                       imageDirectory:
                                                           imageDirPath,
                                                       itemId: item.id!,
+                                                      onRetry: () =>
+                                                          checkFetchUrlMetadata(
+                                                              item),
                                                     ),
                                                   ),
                                                 _buildNoteItem(item),

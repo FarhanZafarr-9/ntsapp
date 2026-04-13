@@ -10,6 +10,7 @@ import '../utils/common.dart';
 import 'common_widgets.dart';
 import '../models/model_item.dart';
 import '../utils/utils_crypto.dart';
+import 'widgets_shimmer.dart';
 
 class ItemWidgetDate extends StatelessWidget {
   final ModelItem item;
@@ -1107,13 +1108,20 @@ class NotePreviewSummary extends StatelessWidget {
 class NoteUrlPreview extends StatefulWidget {
   final String itemId;
   final String imageDirectory;
-  final Map<String, dynamic> urlInfo;
+  final Map<String, dynamic>? urlInfo;
+  final List<dynamic>? urlInfoList;
+  final String? urlMetadataState;
+  final VoidCallback? onRetry;
 
-  const NoteUrlPreview(
-      {super.key,
-      required this.urlInfo,
-      required this.itemId,
-      required this.imageDirectory});
+  const NoteUrlPreview({
+    super.key,
+    this.urlInfo,
+    this.urlInfoList,
+    this.urlMetadataState,
+    required this.itemId,
+    required this.imageDirectory,
+    this.onRetry,
+  });
 
   @override
   State<NoteUrlPreview> createState() => _NoteUrlPreviewState();
@@ -1121,7 +1129,197 @@ class NoteUrlPreview extends StatefulWidget {
 
 class _NoteUrlPreviewState extends State<NoteUrlPreview> {
   bool removed = false;
-  // null = not yet checked, false = not found, true = found
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didUpdateWidget(NoteUrlPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+  }
+
+
+  Future<void> remove() async {
+    removed = await ModelItem.removeUrlInfo(widget.itemId);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (removed) return const SizedBox.shrink();
+
+    if (widget.urlMetadataState == "loading") {
+      return const NoteUrlPreviewShimmer();
+    }
+
+    if (widget.urlMetadataState == "error") {
+      return _buildErrorState(context);
+    }
+
+    if (widget.urlMetadataState == "none") {
+      return _buildNoPreviewState(context);
+    }
+
+    final List<dynamic> previews = widget.urlInfoList ?? (widget.urlInfo != null ? [widget.urlInfo] : []);
+    if (previews.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (previews.length > 1) _buildNavigationHeader(context, previews.length),
+        _PreviewCard(
+          urlInfo: previews[_currentPage] as Map<String, dynamic>,
+          index: _currentPage,
+          itemId: widget.itemId,
+          imageDirectory: widget.imageDirectory,
+          onRemove: remove,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNoPreviewState(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.08), width: 0.75),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.link, size: 20, color: cs.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "No preview info available",
+              style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+            ),
+          ),
+          if (widget.onRetry != null)
+            TextButton.icon(
+              onPressed: widget.onRetry,
+              icon: const Icon(LucideIcons.refreshCw, size: 14),
+              label: const Text("Get Preview", style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                foregroundColor: cs.primary,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationHeader(BuildContext context, int total) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              "${_currentPage + 1} / $total",
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: cs.primary,
+              ),
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: _currentPage > 0
+                ? () => setState(() => _currentPage--)
+                : null,
+            icon: const Icon(LucideIcons.chevronLeft, size: 14),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: _currentPage < total - 1
+                ? () => setState(() => _currentPage++)
+                : null,
+            icon: const Icon(LucideIcons.chevronRight, size: 14),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.errorContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.error.withValues(alpha: 0.2), width: 0.75),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.alertCircle, size: 20, color: cs.error),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "Failed to load preview",
+              style: TextStyle(fontSize: 13, color: cs.onErrorContainer),
+            ),
+          ),
+          if (widget.onRetry != null)
+            TextButton.icon(
+              onPressed: widget.onRetry,
+              icon: const Icon(LucideIcons.refreshCw, size: 14),
+              label: const Text("Retry", style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                foregroundColor: cs.error,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewCard extends StatefulWidget {
+  final Map<String, dynamic> urlInfo;
+  final int index;
+  final String itemId;
+  final String imageDirectory;
+  final VoidCallback onRemove;
+
+  const _PreviewCard({
+    required this.urlInfo,
+    required this.index,
+    required this.itemId,
+    required this.imageDirectory,
+    required this.onRemove,
+  });
+
+  @override
+  State<_PreviewCard> createState() => _PreviewCardState();
+}
+
+class _PreviewCardState extends State<_PreviewCard> {
   bool? _imageExists;
 
   @override
@@ -1131,71 +1329,52 @@ class _NoteUrlPreviewState extends State<NoteUrlPreview> {
   }
 
   @override
-  void didUpdateWidget(NoteUrlPreview oldWidget) {
+  void didUpdateWidget(_PreviewCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Re-check if the imageDirectory or itemId changed (e.g. directory loaded late)
-    if (oldWidget.imageDirectory != widget.imageDirectory ||
-        oldWidget.itemId != widget.itemId) {
+    if (oldWidget.index != widget.index || oldWidget.itemId != widget.itemId) {
       _checkImageFile();
     }
   }
 
   Future<void> _checkImageFile() async {
-    if (widget.imageDirectory.isEmpty) {
-      // Directory not ready yet — wait a bit and retry
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (!mounted) return;
-      _checkImageFile();
-      return;
-    }
-    final file = File("${widget.imageDirectory}/${widget.itemId}-urlimage.png");
+    if (widget.imageDirectory.isEmpty) return;
+    final String imageId =
+        widget.index == 0 ? widget.itemId : "${widget.itemId}-${widget.index}";
+    final file = File("${widget.imageDirectory}/$imageId-urlimage.png");
     final exists = file.existsSync();
     if (mounted && exists != _imageExists) {
       setState(() => _imageExists = exists);
     }
   }
 
-  Future<void> remove() async {
-    removed = await ModelItem.removeUrlInfo(widget.itemId);
-    if (mounted) setState(() {});
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    if (removed) return const SizedBox.shrink();
-
-    final imgFile = _imageExists == true
-        ? File("${widget.imageDirectory}/${widget.itemId}-urlimage.png")
+    final String imageId =
+        widget.index == 0 ? widget.itemId : "${widget.itemId}-${widget.index}";
+    final File? imgFile = _imageExists == true
+        ? File("${widget.imageDirectory}/$imageId-urlimage.png")
         : null;
 
-    // portrait == 1 means tall/square image → side thumbnail
-    // portrait == 0 means landscape/banner image → full-width bottom strip
-    final bool isLandscape =
-        imgFile != null && (widget.urlInfo["portrait"] == 0);
-    final bool isPortrait =
-        imgFile != null && (widget.urlInfo["portrait"] != 0);
+    final bool isLandscape = imgFile != null && (widget.urlInfo["portrait"] == 0);
+    final bool isPortrait = imgFile != null && (widget.urlInfo["portrait"] != 0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: cs.onSurface.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-            color: cs.onSurface.withValues(alpha: 0.08), width: 0.75),
+        border: Border.all(color: cs.onSurface.withValues(alpha: 0.08), width: 0.75),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Top row: accent bar + text + optional portrait thumbnail ──
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // left accent bar
                 Container(width: 3, color: cs.primary),
-                // text block
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
@@ -1235,7 +1414,6 @@ class _NoteUrlPreviewState extends State<NoteUrlPreview> {
                     ),
                   ),
                 ),
-                // portrait thumbnail — tall/square image on the right
                 if (isPortrait)
                   Container(
                     width: 72,
@@ -1248,57 +1426,19 @@ class _NoteUrlPreviewState extends State<NoteUrlPreview> {
                       ),
                     ),
                   ),
-                // action buttons: expand (if image exists) + dismiss
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (imgFile != null)
                       IconButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            barrierColor: Colors.black87,
-                            builder: (context) => Dialog(
-                              backgroundColor: Colors.transparent,
-                              child: Stack(
-                                children: [
-                                  Center(
-                                    child: InteractiveViewer(
-                                      maxScale: 3.5,
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.file(
-                                          imgFile,
-                                          fit: BoxFit.contain,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 16,
-                                    right: 16,
-                                    child: IconButton(
-                                      icon: const Icon(Icons.close,
-                                          color: Colors.white, size: 28),
-                                      onPressed: () => Navigator.pop(context),
-                                      style: IconButton.styleFrom(
-                                        backgroundColor:
-                                            Colors.black.withValues(alpha: 0.5),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: () => _showZoomableImage(context, imgFile),
                         icon: Icon(Icons.zoom_out_map,
                             size: 16,
                             color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
                         padding: const EdgeInsets.all(8),
                       ),
                     IconButton(
-                      onPressed: remove,
+                      onPressed: widget.onRemove,
                       icon: Icon(LucideIcons.x,
                           size: 16,
                           color: cs.onSurfaceVariant.withValues(alpha: 0.6)),
@@ -1309,17 +1449,46 @@ class _NoteUrlPreviewState extends State<NoteUrlPreview> {
               ],
             ),
           ),
-          // ── Bottom banner — landscape image full-width strip ──────────
           if (isLandscape)
             SizedBox(
               height: 120,
               width: double.infinity,
-              child: Image.file(
-                imgFile,
-                fit: BoxFit.cover,
-              ),
+              child: Image.file(imgFile, fit: BoxFit.cover),
             ),
         ],
+      ),
+    );
+  }
+
+  void _showZoomableImage(BuildContext context, File imgFile) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                maxScale: 3.5,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(imgFile, fit: BoxFit.contain),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(context),
+                style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.5)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

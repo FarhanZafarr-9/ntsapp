@@ -400,6 +400,9 @@ class ModelItem {
       updatedMap[attr] = map[attr];
     }
     int updated = await dbHelper.update("item", updatedMap, id);
+    // signal item update
+    EventStream().publish(AppEvent(type: EventType.changedItemId, value: id));
+
     bool syncEnabled = await ModelPreferences.get(
             AppString.hasEncryptionKeys.string,
             defaultValue: "no") ==
