@@ -204,6 +204,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   ThemeMode _themeMode = ThemeMode.system;
   late bool _isDarkMode;
   bool _useDynamicColor = false;
+  Color? _accentColor;
 
   // sharing intent
   StreamSubscription? _intentSub;
@@ -235,6 +236,11 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     }
     // Load dynamic color setting
     _useDynamicColor = ModelSetting.get("use_dynamic_color", "no") == "yes";
+    // Load custom accent color
+    String? savedAccent = ModelSetting.get("accent_color", null);
+    if (savedAccent != null) {
+      _accentColor = colorFromHex(savedAccent);
+    }
     // Initialize lock state for cold start
     if (ModelSetting.get("local_auth", "no") == "yes") {
       AuthGuard.isLocked.value = true;
@@ -319,12 +325,19 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     await ModelSetting.set("theme", _isDarkMode ? "dark" : "light");
   }
 
-  // Toggle dynamic coloring
   Future<void> _onDynamicColorToggle() async {
     setState(() {
       _useDynamicColor = !_useDynamicColor;
     });
     await ModelSetting.set("use_dynamic_color", _useDynamicColor ? "yes" : "no");
+  }
+
+  // Handle accent color change
+  Future<void> _onAccentColorChange(Color color) async {
+    setState(() {
+      _accentColor = color;
+    });
+    await ModelSetting.set("accent_color", colorToHex(color));
   }
 
   @override
@@ -344,6 +357,8 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
       onThemeToggle: _onThemeToggle,
       useDynamicColor: _useDynamicColor,
       onDynamicColorToggle: _onDynamicColorToggle,
+      accentColor: _accentColor,
+      onAccentColorChange: _onAccentColorChange,
     );
     if (isLargeScreen) {
       page = PageCategoriesGroupsPane(
@@ -352,6 +367,8 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         onThemeToggle: _onThemeToggle,
         useDynamicColor: _useDynamicColor,
         onDynamicColorToggle: _onDynamicColorToggle,
+        accentColor: _accentColor,
+        onAccentColorChange: _onAccentColorChange,
       );
     }
     String processMedia = ModelSetting.get("process_media", "no");
@@ -362,6 +379,8 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         onThemeToggle: _onThemeToggle,
         useDynamicColor: _useDynamicColor,
         onDynamicColorToggle: _onDynamicColorToggle,
+        accentColor: _accentColor,
+        onAccentColorChange: _onAccentColorChange,
       );
     }
     return ChangeNotifierProvider(
@@ -397,8 +416,10 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
                 ),
               );
             },
-            theme: AppThemes.getTheme(Brightness.light, lightColorScheme),
-            darkTheme: AppThemes.getTheme(Brightness.dark, darkColorScheme),
+            theme: AppThemes.getTheme(Brightness.light, lightColorScheme,
+                seedColor: _accentColor),
+            darkTheme: AppThemes.getTheme(Brightness.dark, darkColorScheme,
+                seedColor: _accentColor),
             themeMode: _themeMode,
             // Uses system theme by default
             home: page,

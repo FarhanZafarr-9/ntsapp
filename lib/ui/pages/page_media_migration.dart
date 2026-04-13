@@ -11,11 +11,13 @@ import '../../models/model_setting.dart';
 import 'page_home.dart';
 
 class PageMediaMigration extends StatefulWidget {
-  final bool runningOnDesktop;
   final bool isDarkMode;
   final VoidCallback onThemeToggle;
   final bool useDynamicColor;
   final VoidCallback onDynamicColorToggle;
+  final bool runningOnDesktop;
+  final Color? accentColor;
+  final Function(Color)? onAccentColorChange;
 
   const PageMediaMigration(
       {super.key,
@@ -23,7 +25,9 @@ class PageMediaMigration extends StatefulWidget {
       required this.onThemeToggle,
       required this.useDynamicColor,
       required this.onDynamicColorToggle,
-      required this.runningOnDesktop});
+      required this.runningOnDesktop,
+      this.accentColor,
+      this.onAccentColorChange});
 
   @override
   State<PageMediaMigration> createState() => _PageMediaMigrationState();
@@ -45,6 +49,8 @@ class _PageMediaMigrationState extends State<PageMediaMigration> {
       onDynamicColorToggle: widget.onDynamicColorToggle,
       runningOnDesktop: false,
       setShowHidePage: null,
+      accentColor: widget.accentColor,
+      onAccentColorChange: widget.onAccentColorChange,
     );
     if (widget.runningOnDesktop) {
       page = PageCategoriesGroupsPane(
@@ -52,7 +58,9 @@ class _PageMediaMigrationState extends State<PageMediaMigration> {
           isDarkMode: widget.isDarkMode,
           onThemeToggle: widget.onThemeToggle,
           useDynamicColor: widget.useDynamicColor,
-          onDynamicColorToggle: widget.onDynamicColorToggle);
+          onDynamicColorToggle: widget.onDynamicColorToggle,
+          accentColor: widget.accentColor,
+          onAccentColorChange: widget.onAccentColorChange);
     }
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => page,

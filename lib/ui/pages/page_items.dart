@@ -27,6 +27,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../utils/common.dart';
 import '../../models/model_item.dart';
 import '../../models/model_item_group.dart';
+import '../../models/model_setting.dart';
+
 import 'page_contact_pick.dart';
 import 'page_group_add_edit.dart';
 import 'page_location_pick.dart';
@@ -200,16 +202,28 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
   }
 
   Future<void> loadGroupSettings(ModelGroup group) async {
+    bool useGroupSettings =
+        ModelSetting.get("use_group_settings", "yes") == "yes";
     Map<String, dynamic>? data = group.data;
-    if (data != null && mounted) {
+
+    if (mounted) {
       setState(() {
-        if (data.containsKey("date_time")) {
-          showDateTime = data["date_time"] == 1;
+        if (useGroupSettings && data != null) {
+          if (data.containsKey("date_time")) {
+            showDateTime = data["date_time"] == 1;
+          }
+          if (data.containsKey("note_border")) {
+            showNoteBorder = data["note_border"] == 1;
+          }
+        } else {
+          showDateTime =
+              ModelSetting.get("global_show_date_time", "yes") == "yes";
+          showNoteBorder =
+              ModelSetting.get("global_show_note_border", "yes") == "yes";
         }
-        if (data.containsKey("note_border")) {
-          showNoteBorder = data["note_border"] == 1;
-        }
-        if (data.containsKey("task_mode")) {
+
+        // task_mode is always group-specific as per user feedback
+        if (data != null && data.containsKey("task_mode")) {
           _isCreatingTask = data["task_mode"] == 1;
         }
       });
@@ -836,12 +850,15 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> checkFetchUrlMetadata(ModelItem item) async {
+  Future<void> checkFetchUrlMetadata(ModelItem item, {bool force = false}) async {
     if (item.id == null) return;
     if (_fetchingItemIds.contains(item.id)) return;
 
     final matches = _linkRegExp.allMatches(item.text);
-    final List<String> links = matches.map((m) => item.text.substring(m.start, m.end)).toSet().toList(); // Unique links
+    final List<String> links = matches
+        .map((m) => item.text.substring(m.start, m.end))
+        .toSet()
+        .toList(); // Unique links
 
     if (links.isNotEmpty) {
       _fetchingItemIds.add(item.id!);
@@ -856,30 +873,91 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
         List<Map<String, dynamic>> urlInfoList = [];
         int successCount = 0;
 
-        // Fetch up to 3 links to avoid overloading
+        // Process up to 3 links to avoid overloading
         for (int i = 0; i < links.length && i < 3; i++) {
           final String link = links[i];
-          try {
-            // Added 15s timeout to prevent hanging
-            final Metadata? metaData = await MetadataFetch.extract(link).timeout(const Duration(seconds: 15));
-            if (metaData != null) {
-              int portrait = 1;
-              if (metaData.image != null) {
-                // Use base itemId for first link, and numbered ones for others
-                final String imageId = i == 0 ? item.id! : "${item.id}-$i";
-                portrait = await checkDownloadNetworkImage(imageId, metaData.image!);
+          Map<String, dynamic>? metaData;
+          int portrait = 1;
+
+          // 1. Optimization: Try to find existing message with this URL metadata
+          if (!force) {
+            final oldItem = await ModelItem.findByUrl(link, excludeId: item.id);
+            if (oldItem != null && oldItem.data != null) {
+              final List<dynamic>? oldList = oldItem.data!["url_info_list"];
+              final Map<String, dynamic>? oldSingle = oldItem.data!["url_info"];
+
+              Map<String, dynamic>? foundInfo;
+              int oldIndex = 0;
+
+              if (oldList != null) {
+                for (int j = 0; j < oldList.length; j++) {
+                  if (oldList[j]["url"] == link) {
+                    foundInfo = Map<String, dynamic>.from(oldList[j]);
+                    oldIndex = j;
+                    break;
+                  }
+                }
+              } else if (oldSingle != null && oldSingle["url"] == link) {
+                foundInfo = Map<String, dynamic>.from(oldSingle);
+                oldIndex = 0;
               }
-              urlInfoList.add({
-                "url": link,
-                "title": metaData.title,
-                "desc": metaData.description,
-                "image": metaData.image,
-                "portrait": portrait
-              });
-              successCount++;
+
+              if (foundInfo != null) {
+                metaData = foundInfo;
+                portrait = foundInfo["portrait"] ?? 1;
+
+                // Copy the image file if it exists
+                final String oldImageId =
+                    oldIndex == 0 ? oldItem.id! : "${oldItem.id}-$oldIndex";
+                final String newImageId = i == 0 ? item.id! : "${item.id}-$i";
+
+                final oldFile =
+                    await getFile("image", "$oldImageId-urlimage.png");
+                if (oldFile != null && oldFile.existsSync()) {
+                  final newPath =
+                      await getFilePath("image", "$newImageId-urlimage.png");
+                  await checkAndCreateDirectory(newPath);
+                  await oldFile.copy(newPath);
+                } else if (foundInfo["image"] != null) {
+                  // If image file is missing but we have the URL, re-download it
+                  final String imageId = i == 0 ? item.id! : "${item.id}-$i";
+                  portrait = await checkDownloadNetworkImage(
+                      imageId, foundInfo["image"]);
+                }
+              }
             }
-          } catch (e) {
-            logger.error("error fetching metadata for $link", error: e);
+          }
+
+          // 2. If not found or forced, fetch from internet
+          if (metaData == null) {
+            try {
+              final Metadata? fetchResult = await MetadataFetch.extract(link)
+                  .timeout(const Duration(seconds: 15));
+              if (fetchResult != null) {
+                metaData = {
+                  "url": link,
+                  "title": fetchResult.title,
+                  "desc": fetchResult.description,
+                  "image": fetchResult.image,
+                };
+
+                if (fetchResult.image != null) {
+                  final String imageId = i == 0 ? item.id! : "${item.id}-$i";
+                  portrait = await checkDownloadNetworkImage(
+                      imageId, fetchResult.image!);
+                }
+              }
+            } catch (e) {
+              logger.error("error fetching metadata for $link", error: e);
+            }
+          }
+
+          if (metaData != null) {
+            urlInfoList.add({
+              ...metaData,
+              "portrait": portrait,
+            });
+            successCount++;
           }
         }
 
@@ -907,7 +985,8 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
     } else {
       // No links, clear existing info
       Map<String, dynamic>? data = item.data;
-      if (data != null && (data.containsKey("url_info") || data.containsKey("url_info_list"))) {
+      if (data != null &&
+          (data.containsKey("url_info") || data.containsKey("url_info_list"))) {
         data.remove("url_info");
         data.remove("url_info_list");
         data.remove("url_metadata_state");
@@ -1600,7 +1679,8 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                                                       itemId: item.id!,
                                                       onRetry: () =>
                                                           checkFetchUrlMetadata(
-                                                              item),
+                                                              item,
+                                                              force: true),
                                                     ),
                                                   ),
                                                 _buildNoteItem(item),
@@ -2306,9 +2386,4 @@ class _ThreadBubble extends StatelessWidget {
                 alignLeft: alignLeft,
                 color: cs.onSurface.withValues(alpha: 0.25),
               ),
-            ),
-          ),
-      ],
-    );
-  }
-}
+       

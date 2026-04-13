@@ -1331,7 +1331,9 @@ class _PreviewCardState extends State<_PreviewCard> {
   @override
   void didUpdateWidget(_PreviewCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.index != widget.index || oldWidget.itemId != widget.itemId) {
+    if (oldWidget.index != widget.index ||
+        oldWidget.itemId != widget.itemId ||
+        oldWidget.imageDirectory != widget.imageDirectory) {
       _checkImageFile();
     }
   }
@@ -1349,6 +1351,10 @@ class _PreviewCardState extends State<_PreviewCard> {
 
   @override
   Widget build(BuildContext context) {
+    if (_imageExists == null || widget.imageDirectory.isEmpty) {
+      return const NoteUrlPreviewShimmer();
+    }
+
     final cs = Theme.of(context).colorScheme;
     final String imageId =
         widget.index == 0 ? widget.itemId : "${widget.itemId}-${widget.index}";
@@ -1377,7 +1383,7 @@ class _PreviewCardState extends State<_PreviewCard> {
                 Container(width: 3, color: cs.primary),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 6, 10),
+                    padding: const EdgeInsets.fromLTRB(10, 14, 6, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1451,7 +1457,7 @@ class _PreviewCardState extends State<_PreviewCard> {
           ),
           if (isLandscape)
             SizedBox(
-              height: 120,
+              height: 160,
               width: double.infinity,
               child: Image.file(imgFile, fit: BoxFit.cover),
             ),

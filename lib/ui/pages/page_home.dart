@@ -48,6 +48,8 @@ class PageCategoriesGroups extends StatefulWidget {
   final bool runningOnDesktop;
   final Function(PageType, bool, PageParams)? setShowHidePage;
   final ModelGroup? selectedGroup;
+  final Color? accentColor;
+  final Function(Color)? onAccentColorChange;
 
   const PageCategoriesGroups(
       {super.key,
@@ -58,7 +60,9 @@ class PageCategoriesGroups extends StatefulWidget {
       required this.onDynamicColorToggle,
       required this.runningOnDesktop,
       required this.setShowHidePage,
-      this.selectedGroup});
+      this.selectedGroup,
+      this.accentColor,
+      this.onAccentColorChange});
 
   @override
   State<PageCategoriesGroups> createState() => _PageCategoriesGroupsState();
@@ -920,6 +924,8 @@ class _PageCategoriesGroupsState extends State<PageCategoriesGroups> {
                         onThemeToggle: widget.onThemeToggle,
                         useDynamicColor: widget.useDynamicColor,
                         onDynamicColorToggle: widget.onDynamicColorToggle,
+                        accentColor: widget.accentColor,
+                        onAccentColorChange: widget.onAccentColorChange,
                         canShowBackupRestore:
                             !requiresAuthentication || isAuthenticated,
                       ),

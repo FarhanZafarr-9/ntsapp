@@ -35,13 +35,17 @@ class PageCategoriesGroupsPane extends StatefulWidget {
   final VoidCallback onThemeToggle;
   final bool useDynamicColor;
   final VoidCallback onDynamicColorToggle;
+  final Color? accentColor;
+  final Function(Color)? onAccentColorChange;
   const PageCategoriesGroupsPane(
       {super.key,
       required this.sharedContents,
       required this.isDarkMode,
       required this.onThemeToggle,
       required this.useDynamicColor,
-      required this.onDynamicColorToggle});
+      required this.onDynamicColorToggle,
+      this.accentColor,
+      this.onAccentColorChange});
 
   @override
   State<PageCategoriesGroupsPane> createState() =>
@@ -220,6 +224,8 @@ class _PageCategoriesGroupsPaneState extends State<PageCategoriesGroupsPane> {
                         runningOnDesktop: _runningOnDesktop,
                         setShowHidePage: _setShowHidePage,
                         selectedGroup: selectedGroup,
+                        accentColor: widget.accentColor,
+                        onAccentColorChange: widget.onAccentColorChange,
                       ),
                       if (showSettings)
                         SettingsPage(
@@ -230,6 +236,8 @@ class _PageCategoriesGroupsPaneState extends State<PageCategoriesGroupsPane> {
                           onThemeToggle: widget.onThemeToggle,
                           onDynamicColorToggle: widget.onDynamicColorToggle,
                           canShowBackupRestore: isAuthenticated ?? true,
+                          accentColor: widget.accentColor,
+                          onAccentColorChange: widget.onAccentColorChange,
                         ),
                       if (showAddEditGroup)
                         PageGroupAddEdit(

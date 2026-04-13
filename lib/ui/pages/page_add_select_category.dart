@@ -102,7 +102,7 @@ class PageAddSelectCategoryState extends State<PageAddSelectCategory> {
             : null,
       ),
       body: Padding(
-        padding: const EdgeInsets.only(top: 8.0),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: ListView.builder(
             itemCount: categories.length,
             itemBuilder: (context, index) {
@@ -115,14 +115,23 @@ class PageAddSelectCategoryState extends State<PageAddSelectCategory> {
                   thumbnail: category.thumbnail,
                   color: category.color,
                   title: category.title);
-              return GestureDetector(
-                onTap: () {
-                  selectCategory(category.id!);
-                },
-                child: WidgetCategoryGroup(
-                  categoryGroup: categoryGroup,
-                  showSummary: true,
-                  showCategorySign: false,
+              final cs = Theme.of(context).colorScheme;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 3),
+                child: Material(
+                  color: cs.onSurface.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      selectCategory(category.id!);
+                    },
+                    child: WidgetCategoryGroup(
+                      categoryGroup: categoryGroup,
+                      showSummary: true,
+                      showCategorySign: false,
+                    ),
+                  ),
                 ),
               );
             }),

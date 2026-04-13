@@ -303,7 +303,7 @@ class ModelItem {
     String sql = '''
       SELECT count(*) as count
       FROM item
-      WHERE pinned = 1 AND
+      WHERE pinned = 1
         AND group_id = ? AND archived_at = 0
     ''';
     final rows = await db.rawQuery(sql, [groupId]);
@@ -327,6 +327,31 @@ class ModelItem {
       return true;
     }
     return false;
+  }
+
+  static Future<ModelItem?> findByUrl(String url, {String? excludeId}) async {
+    final dbHelper = StorageSqlite.instance;
+    final db = await dbHelper.database;
+    // Search for the URL pattern in the data column.
+    // Handles both url_info and url_info_list formats.
+    String escapedUrl = url.replaceAll('"', '\\"');
+    String sql = '''
+      SELECT * FROM item 
+      WHERE (data LIKE ? OR data LIKE ?) 
+        AND (data LIKE '%url_info_list%' OR data LIKE '%url_info%')
+        ${excludeId != null ? 'AND id != ?' : ''}
+      ORDER BY at DESC LIMIT 1
+    ''';
+    final params = [
+      '%"url":"$escapedUrl"%',
+      '%"url": "$escapedUrl"%',
+      if (excludeId != null) excludeId,
+    ];
+    final rows = await db.rawQuery(sql, params);
+    if (rows.isNotEmpty) {
+      return await fromMap(rows.first);
+    }
+    return null;
   }
 
   static Future<ModelItem?> get(String id) async {

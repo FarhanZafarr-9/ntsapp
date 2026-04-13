@@ -51,24 +51,16 @@ bool revenueCatSupported =
 bool runningOnMobile = Platform.isAndroid || Platform.isIOS;
 
 final List<Color> predefinedColors = [
-  "#06b6d4",
-  "#0ea5e9",
-  "#3b82f6",
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#14b8a6",
-  "#22c55e",
-  "#84cc16",
-  "#eab308",
-  "#f97316",
-  "#ef4444",
-  "#ffffff",
-  "#e5e7eb",
-  "#9ca3af",
-  "#4b5563",
-  "#1f2937",
-  "#000000"
+  "#6750A4", // Baseline Violet
+  "#0061A4", // Blue
+  "#006C4C", // Teal
+  "#735C00", // Gold/Amber
+  "#984061", // Rose
+  "#B12E1B", // Red
+  "#626100", // Olive
+  "#006874", // Cyan
+  "#445E91", // Slate Blue
+  "#605D62", // Neutral Grey
 ].map((colorText) {
   return colorFromHex(colorText);
 }).toList();

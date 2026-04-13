@@ -10,6 +10,8 @@ import 'package:ntsapp/services/service_events.dart';
 import '../../utils/common.dart';
 import '../common_widgets.dart';
 import '../../models/model_item_group.dart';
+import '../../models/model_setting.dart';
+
 
 class PageGroupAddEdit extends StatefulWidget {
   final bool runningOnDesktop;
@@ -326,8 +328,9 @@ class PageGroupAddEditState extends State<PageGroupAddEdit> {
       appBar: AppBar(
         title: Text(
           pageTitle,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 18,
+            fontWeight: FontWeight.w500,
           ),
         ),
         leading: widget.runningOnDesktop
@@ -455,7 +458,9 @@ class PageGroupAddEditState extends State<PageGroupAddEdit> {
               icon: LucideIcons.clock9,
               label: 'Date / Time',
               value: showDateTime,
-              onChanged: setShowDateTime,
+              onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
+                  ? setShowDateTime
+                  : (v) {},
             ),
             const SizedBox(height: 3),
             _settingsToggleTile(
@@ -463,8 +468,24 @@ class PageGroupAddEditState extends State<PageGroupAddEdit> {
               icon: LucideIcons.rectangleHorizontal,
               label: 'Note border',
               value: showNoteBorder,
-              onChanged: setShowNoteBorder,
+              onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
+                  ? setShowNoteBorder
+                  : (v) {},
             ),
+            if (ModelSetting.get("use_group_settings", "yes") != "yes") ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  "These settings are currently controlled globally from Settings.",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.primary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             if (widget.group != null)
               _tappableTile(

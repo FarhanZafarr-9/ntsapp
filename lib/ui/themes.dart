@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AppThemes {
-  static ThemeData getTheme(Brightness brightness, ColorScheme? dynamicColorScheme) {
+  static ThemeData getTheme(Brightness brightness, ColorScheme? dynamicColorScheme, {Color? seedColor}) {
     final colorScheme = dynamicColorScheme ??
         ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6750A4),
+          seedColor: seedColor ?? const Color(0xFF6750A4),
           brightness: brightness,
         );
 

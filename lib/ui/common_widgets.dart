@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -873,111 +874,215 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final String hexCode = colorToHex(selectedColor);
+
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      content: Padding(
-        padding: const EdgeInsets.all(16.0),
+      backgroundColor: cs.surfaceContainerHigh,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Preview Card
+            Container(
+              height: 100,
+              decoration: BoxDecoration(
+                color: selectedColor,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: selectedColor.withValues(alpha: 0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  )
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            hexCode.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Color Grid
             Wrap(
-              spacing: 15.0, // Horizontal spacing between circles
-              runSpacing: 15.0, // Vertical spacing between rows
+              alignment: WrapAlignment.center,
+              spacing: 12.0,
+              runSpacing: 12.0,
               children: predefinedColors.map((color) {
+                final bool isSelected = selectedColor == color;
                 return GestureDetector(
                   onTap: () {
                     setState(() {
                       selectedColor = color;
                     });
                   },
-                  child: CircleAvatar(
-                    backgroundColor: color,
-                    radius: 15, // Fixed size for the circles
-                    child: selectedColor == color
-                        ? Icon(Icons.check, color: Colors.white, size: 16)
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(isSelected ? 10 : 14),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.white
+                            : color.computeLuminance() > 0.8
+                                ? cs.outlineVariant
+                                : Colors.transparent,
+                        width: isSelected ? 3 : 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: color.withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: isSelected
+                        ? Icon(
+                            Icons.check,
+                            color: color.computeLuminance() > 0.6
+                                ? Colors.black87
+                                : Colors.white,
+                            size: 18,
+                          )
                         : null,
                   ),
                 );
               }).toList(),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-            // Fourth row with color preview and slider
-            Row(
-              children: [
-                // Circle to show the selected color
-                CircleAvatar(
-                  backgroundColor: selectedColor,
-                  radius: 15,
-                ),
-                const SizedBox(width: 10),
-
-                // Color slider
-                Expanded(
-                  child: Stack(
-                    alignment: AlignmentDirectional.center,
-                    children: [
-                      // HSV gradient as slider background
-                      Padding(
-                        padding: const EdgeInsets.only(left: 15, right: 15),
-                        child: Container(
-                          height: 30,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                for (double i = 0; i <= 1; i += 0.1)
-                                  HSVColor.fromAHSV(1.0, i * 360, 1.0, 1.0)
-                                      .toColor()
-                              ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Actual slider overlay
-                      Slider(
-                        value: hue,
-                        onChanged: (newHue) {
-                          setState(() {
-                            hue = newHue;
-                            selectedColor =
-                                HSVColor.fromAHSV(1.0, hue * 360, 1.0, 1.0)
-                                    .toColor();
-                          });
-                        },
-                        min: 0.0,
-                        max: 1.0,
-                        activeColor: Colors.transparent,
-                        // Transparent for gradient
-                        inactiveColor: Colors.transparent,
-                        thumbColor: Colors.transparent,
-                        secondaryActiveColor: Colors.transparent,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            // Custom Color Section Label
+            Text(
+              "CUSTOM COLOR",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
             ),
+            const SizedBox(height: 12),
 
-            const SizedBox(height: 16),
+            // Modern Hue Slider
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              decoration: BoxDecoration(
+                color: cs.onSurface.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Stack(
+                alignment: AlignmentDirectional.center,
+                children: [
+                  Container(
+                    height: 18,
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(9),
+                      gradient: LinearGradient(
+                        colors: [
+                          for (double i = 0; i <= 1; i += 0.1)
+                            HSVColor.fromAHSV(1.0, i * 360, 1.0, 1.0).toColor()
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                    ),
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 18,
+                      activeTrackColor: Colors.transparent,
+                      inactiveTrackColor: Colors.transparent,
+                      thumbColor: Colors.white,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 12,
+                        elevation: 4,
+                        pressedElevation: 8,
+                      ),
+                      overlayColor: Colors.white.withValues(alpha: 0.2),
+                    ),
+                    child: Slider(
+                      value: hue,
+                      onChanged: (newHue) {
+                        setState(() {
+                          hue = newHue;
+                          selectedColor =
+                              HSVColor.fromAHSV(1.0, hue * 360, 1.0, 1.0)
+                                  .toColor();
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
           ],
         ),
       ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       actions: [
         TextButton(
-          onPressed: () {
-            Navigator.of(context).pop(null); // Cancel action
-          },
-          child: const Text('Cancel'),
+          onPressed: () => Navigator.of(context).pop(null),
+          style: TextButton.styleFrom(
+            foregroundColor: cs.onSurfaceVariant,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text("Cancel"),
         ),
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop(selectedColor); // Return selected color
-          },
-          child: const Text('Ok'),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(selectedColor),
+          style: FilledButton.styleFrom(
+            backgroundColor: cs.primary.withValues(alpha: 0.1),
+            foregroundColor: cs.primary,
+            elevation: 0,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: const Text(
+            "Select",
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );

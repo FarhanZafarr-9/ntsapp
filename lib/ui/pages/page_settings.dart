@@ -26,6 +26,8 @@ class SettingsPage extends StatefulWidget {
   final VoidCallback onThemeToggle;
   final VoidCallback onDynamicColorToggle;
   final bool canShowBackupRestore;
+  final Color? accentColor;
+  final Function(Color)? onAccentColorChange;
 
   const SettingsPage(
       {super.key,
@@ -35,7 +37,9 @@ class SettingsPage extends StatefulWidget {
       required this.onDynamicColorToggle,
       required this.canShowBackupRestore,
       required this.runningOnDesktop,
-      required this.setShowHidePage});
+      required this.setShowHidePage,
+      this.accentColor,
+      this.onAccentColorChange});
 
   @override
   SettingsPageState createState() => SettingsPageState();
@@ -51,11 +55,23 @@ class SettingsPageState extends State<SettingsPage> {
       ModelSetting.get(AppString.loggingEnabled.string, "no") == "yes";
   String timeFormat = "H12";
 
+  // Display Overrides
+  late bool useGroupSettings;
+  late bool globalShowDateTime;
+  late bool globalShowNoteBorder;
+
   @override
   void initState() {
     super.initState();
     timeFormat = ModelSetting.get(AppString.timeFormat.string, "H12");
     isAuthEnabled = ModelSetting.get("local_auth", "no") == "yes";
+
+    // Initialize display overrides
+    useGroupSettings = ModelSetting.get("use_group_settings", "yes") == "yes";
+    globalShowDateTime =
+        ModelSetting.get("global_show_date_time", "yes") == "yes";
+    globalShowNoteBorder =
+        ModelSetting.get("global_show_note_border", "yes") == "yes";
   }
 
   Future<void> checkDeviceAuth() async {
@@ -70,6 +86,21 @@ class SettingsPageState extends State<SettingsPage> {
       await ModelSetting.set("local_auth", "no");
     }
     if (mounted) setState(() {});
+  }
+
+  Future<void> _setUseGroupSettings(bool value) async {
+    setState(() => useGroupSettings = value);
+    await ModelSetting.set("use_group_settings", value ? "yes" : "no");
+  }
+
+  Future<void> _setGlobalShowDateTime(bool value) async {
+    setState(() => globalShowDateTime = value);
+    await ModelSetting.set("global_show_date_time", value ? "yes" : "no");
+  }
+
+  Future<void> _setGlobalShowNoteBorder(bool value) async {
+    setState(() => globalShowNoteBorder = value);
+    await ModelSetting.set("global_show_note_border", value ? "yes" : "no");
   }
 
   Future<void> _authenticate() async {
@@ -274,17 +305,21 @@ class SettingsPageState extends State<SettingsPage> {
               borderRadius: radius,
               child: InkWell(
                 borderRadius: radius,
-                onTap: tile.onTap,
-                child: ClipRRect(
-                  borderRadius: radius,
-                  child: ListTile(
-                    leading: tile.leading,
-                    title: tile.title,
-                    subtitle: tile.subtitle,
-                    trailing: tile.trailing,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 2,
+                onTap: tile.enabled ? tile.onTap : null,
+                child: Opacity(
+                  opacity: tile.enabled ? 1.0 : 0.5,
+                  child: ClipRRect(
+                    borderRadius: radius,
+                    child: ListTile(
+                      leading: tile.leading,
+                      title: tile.titleWidget ?? tile.title,
+                      subtitle: tile.subtitle,
+                      trailing: tile.trailing,
+                      enabled: tile.enabled,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -347,6 +382,71 @@ class SettingsPageState extends State<SettingsPage> {
               ),
               onTap: widget.onDynamicColorToggle,
             ),
+            if (!widget.useDynamicColor)
+              _SettingsTile(
+                leading: _buildLeadingIcon(LucideIcons.droplets, cs.primary),
+                title: const Text("App Accent Color"),
+                subtitle: const Text("Hand-picked custom theme"),
+                titleWidget: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("App Accent Color"),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 44,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: predefinedColors.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final color = predefinedColors[index];
+                          final isSelected = widget.accentColor == color ||
+                              (widget.accentColor == null &&
+                                  color == const Color(0xFF6750A4));
+                          return GestureDetector(
+                            onTap: () =>
+                                widget.onAccentColorChange?.call(color),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? cs.primary
+                                      : Colors.transparent,
+                                  width: 2.5,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: color.withValues(alpha: 0.4),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        )
+                                      ]
+                                    : null,
+                              ),
+                              child: isSelected
+                                  ? Icon(
+                                      Icons.check,
+                                      size: 16,
+                                      color: color.computeLuminance() > 0.5
+                                          ? Colors.black
+                                          : Colors.white,
+                                    )
+                                  : null,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             _SettingsTile(
               leading: _buildLeadingIcon(LucideIcons.type, Colors.green),
               title: const Text("Font Size"),
@@ -369,6 +469,49 @@ class SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
               ),
+            ),
+          ]),
+
+          // ── Interface ─────────────────────────────────────────────────────
+          _buildSectionHeader("Interface"),
+          _buildSettingsGroup([
+            _SettingsTile(
+              leading:
+                  _buildLeadingIcon(LucideIcons.settings2, cs.onSurfaceVariant),
+              title: const Text("Individual Group Settings"),
+              subtitle: const Text("Use unique settings for each group"),
+              trailing: Switch(
+                value: useGroupSettings,
+                onChanged: _setUseGroupSettings,
+              ),
+              onTap: () => _setUseGroupSettings(!useGroupSettings),
+            ),
+            _SettingsTile(
+              enabled: !useGroupSettings,
+              leading: _buildLeadingIcon(LucideIcons.clock9, cs.onSurfaceVariant),
+              title: const Text("Show Date & Time"),
+              subtitle: const Text("Display timestamp on messages"),
+              trailing: Switch(
+                value: globalShowDateTime,
+                onChanged: !useGroupSettings ? _setGlobalShowDateTime : null,
+              ),
+              onTap: !useGroupSettings
+                  ? () => _setGlobalShowDateTime(!globalShowDateTime)
+                  : null,
+            ),
+            _SettingsTile(
+              enabled: !useGroupSettings,
+              leading: _buildLeadingIcon(
+                  LucideIcons.rectangleHorizontal, cs.onSurfaceVariant),
+              title: const Text("Show Note Borders"),
+              subtitle: const Text("Display bubble outlines"),
+              trailing: Switch(
+                value: globalShowNoteBorder,
+                onChanged: !useGroupSettings ? _setGlobalShowNoteBorder : null,
+              ),
+              onTap: !useGroupSettings
+                  ? () => _setGlobalShowNoteBorder(!globalShowNoteBorder)
+                  : null,
             ),
           ]),
 
@@ -638,16 +781,20 @@ class SettingsPageState extends State<SettingsPage> {
 /// properties without needing to unwrap a fully-built widget.
 class _SettingsTile {
   final Widget? leading;
-  final Widget title;
+  final Widget? title;
+  final Widget? titleWidget;
   final Widget? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final bool enabled;
 
   const _SettingsTile({
     this.leading,
-    required this.title,
+    this.title,
+    this.titleWidget,
     this.subtitle,
     this.trailing,
     this.onTap,
+    this.enabled = true,
   });
 }

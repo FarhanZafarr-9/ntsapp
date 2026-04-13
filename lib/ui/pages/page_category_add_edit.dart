@@ -93,15 +93,69 @@ class _PageCategoryAddEditState extends State<PageCategoryAddEdit> {
     super.dispose();
   }
 
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
+
+  Widget _sectionLabel(String text) {
+    return Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 1.1,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    );
+  }
+
+  Widget _tappableTile({
+    required BuildContext context,
+    required VoidCallback onTap,
+    required Widget leading,
+    required String label,
+    Widget? trailing,
+    Color? labelColor,
+    Color? tileColor,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: tileColor ?? cs.onSurface.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          child: Row(
+            children: [
+              leading,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                      fontSize: 14, color: labelColor ?? cs.onSurface),
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     String task = category == null ? "Add" : "Edit";
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(
           "$task category",
           style: const TextStyle(
-            fontSize: 20,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
           ),
         ),
         leading: widget.runningOnDesktop
@@ -114,58 +168,52 @@ class _PageCategoryAddEditState extends State<PageCategoryAddEdit> {
             : null,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Title"),
+            _sectionLabel("Title"),
+            const SizedBox(height: 8),
             TextField(
               controller: categoryController,
               textCapitalization: TextCapitalization.sentences,
-              autofocus: true,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              autofocus: category == null ? false : true,
+              style: TextStyle(color: cs.onSurface, fontSize: 16),
               textInputAction: TextInputAction.done,
               onSubmitted: saveCategory,
               decoration: InputDecoration(
                 hintText: 'Category title',
-                // Placeholder
-                hintStyle:
-                    TextStyle(color: Colors.grey, fontWeight: FontWeight.w400),
-                border: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                      width: 1.0,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .outlineVariant), // Default line color
+                hintStyle: TextStyle(
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                    fontWeight: FontWeight.w400),
+                filled: true,
+                fillColor: cs.onSurface.withValues(alpha: 0.06),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-                enabledBorder: UnderlineInputBorder(
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                      width: 1.0,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .outlineVariant), // Default line color
+                      color: cs.onSurface.withValues(alpha: 0.15), width: 0.75),
                 ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(
-                      width: 1.0,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .outlineVariant), // Focused line color
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
               onChanged: (value) {
                 title = value.trim();
                 itemChanged = true;
               },
             ),
-            const SizedBox(
-              height: 30,
-            ),
-            Text("Color"),
-            const SizedBox(
-              height: 10,
-            ),
-            GestureDetector(
+            const SizedBox(height: 24),
+            _sectionLabel("Color"),
+            const SizedBox(height: 8),
+            _tappableTile(
+              context: context,
               onTap: () async {
                 Color? pickedColor = await showDialog<Color>(
                   context: context,
@@ -181,29 +229,23 @@ class _PageCategoryAddEditState extends State<PageCategoryAddEdit> {
                   });
                 }
               },
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.workspaces,
-                    size: 18,
-                    color: colorFromHex(colorCode ?? "#5dade2"),
-                  ),
-                  const SizedBox(
-                    width: 12,
-                  ),
-                  Text("Change color"),
-                ],
+              leading: Icon(
+                Icons.workspaces,
+                size: 18,
+                color: colorFromHex(colorCode ?? "#5dade2"),
               ),
+              label: "Change color",
             ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: "save_new_category",
-        onPressed: () {
-          saveCategory(categoryController.text);
-        },
+        onPressed: () => saveCategory(categoryController.text),
         shape: const CircleBorder(),
+        backgroundColor: cs.onSurface.withValues(alpha: 0.1),
+        foregroundColor: cs.onSurface,
+        elevation: 0,
         child: const Icon(LucideIcons.check),
       ),
     );
