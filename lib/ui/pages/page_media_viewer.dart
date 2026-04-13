@@ -7,8 +7,9 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:ntsapp/utils/common.dart';
 import 'package:ntsapp/utils/enums.dart';
 import 'package:video_player/video_player.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../models/model_item.dart';
-
 class PageMediaViewer extends StatefulWidget {
   final bool runningOnDesktop;
   final Function(PageType, bool, PageParams)? setShowHidePage;
@@ -57,6 +58,37 @@ class _PageMediaViewerState extends State<PageMediaViewer> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveToDownloads(String filePath) async {
+    Directory? directory;
+    if (Platform.isAndroid) {
+      directory = Directory('/storage/emulated/0/Download');
+      if (!await directory.exists()) {
+        directory = await getExternalStorageDirectory();
+      }
+    } else if (Platform.isIOS) {
+      directory = await getApplicationDocumentsDirectory();
+    } else {
+      directory = await getDownloadsDirectory();
+    }
+
+    if (directory != null && await directory.exists()) {
+      File file = File(filePath);
+      if (await file.exists()) {
+        try {
+          String newPath = "${directory.path}/${DateTime.now().millisecondsSinceEpoch}_${file.uri.pathSegments.last}";
+          await file.copy(newPath);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved to Downloads!')));
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save file: $e')));
+          }
+        }
+      }
+    }
   }
 
   void loadItems() async {
@@ -128,6 +160,20 @@ class _PageMediaViewerState extends State<PageMediaViewer> {
                 },
               )
             : null,
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.download),
+            onPressed: () {
+              if (currentItem != null && currentItem!.data != null) {
+                final path = currentItem!.data!["path"];
+                if (path != null) {
+                  _saveToDownloads(path);
+                }
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: PageView.builder(
         itemCount: mediaCount,
@@ -327,8 +373,7 @@ class _WidgetVideoPlayerState extends State<WidgetVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return Center(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: AspectRatio(
@@ -383,8 +428,7 @@ class _WidgetMediaKitPlayerState extends State<WidgetMediaKitPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return Center(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Video(controller: controller),
