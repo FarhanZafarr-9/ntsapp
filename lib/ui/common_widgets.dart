@@ -934,6 +934,7 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
     super.initState();
     if (widget.color != null) {
       selectedColor = colorFromHex(widget.color!);
+      hue = HSVColor.fromColor(selectedColor).hue / 360.0;
     }
   }
 
@@ -1010,6 +1011,7 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
                   onTap: () {
                     setState(() {
                       selectedColor = color;
+                      hue = HSVColor.fromColor(selectedColor).hue / 360.0;
                     });
                   },
                   child: AnimatedContainer(

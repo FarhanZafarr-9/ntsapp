@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -92,6 +93,9 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
   bool _isCreatingTask = false;
   bool showDateTime = true;
   bool showNoteBorder = true;
+  bool linkPreview = true;
+  bool sortOldestFirst = false;
+  bool mediaGallery = false;
 
   String imageDirPath = "";
 
@@ -215,11 +219,32 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
           if (data.containsKey("note_border")) {
             showNoteBorder = data["note_border"] == 1;
           }
+          if (data.containsKey("link_preview")) {
+            linkPreview = data["link_preview"] == 1;
+          } else {
+            linkPreview = true; // default on
+          }
+          if (data.containsKey("sort_order")) {
+            sortOldestFirst = data["sort_order"] == 1;
+          } else {
+            sortOldestFirst = false; // default newest first
+          }
+          if (data.containsKey("media_gallery")) {
+            mediaGallery = data["media_gallery"] == 1;
+          } else {
+            mediaGallery = false; // default off
+          }
         } else {
           showDateTime =
               ModelSetting.get("global_show_date_time", "yes") == "yes";
           showNoteBorder =
               ModelSetting.get("global_show_note_border", "yes") == "yes";
+          linkPreview =
+              ModelSetting.get("global_link_preview", "yes") == "yes";
+          sortOldestFirst =
+              ModelSetting.get("global_sort_order", "newest") == "oldest";
+          mediaGallery =
+              ModelSetting.get("global_media_gallery", "no") == "yes";
         }
 
         // task_mode is always group-specific as per user feedback
@@ -231,8 +256,9 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
   }
 
   Future<void> fetchItems(String? itemId) async {
-    List<ModelItem> newItems =
-        await ModelItem.getInGroup(noteGroup!.id!, _filters);
+    List<ModelItem> newItems = await ModelItem.getInGroup(
+        noteGroup!.id!, _filters,
+        sortAsc: sortOldestFirst);
     canScrollToBottom = itemId != null;
     _displayItemList.clear();
     await _addItemsToDisplayList(newItems, true);
@@ -864,6 +890,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
   }
 
   Future<void> checkFetchUrlMetadata(ModelItem item, {bool force = false}) async {
+    if (!linkPreview) return;
     if (item.id == null) return;
     if (_fetchingItemIds.contains(item.id)) return;
 
@@ -1498,7 +1525,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                     child: ScrollablePositionedList.builder(
                       itemScrollController: _itemScrollController,
                       itemPositionsListener: _itemPositionsListener,
-                      reverse: true,
+                      reverse: !sortOldestFirst,
                       itemCount: _displayItemList.length,
                       itemBuilder: (context, index) {
                         if (index < 0 || index >= _displayItemList.length) {
@@ -1506,16 +1533,29 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                         }
                         final ModelItem item = _displayItemList[index];
 
+                        if (mediaGallery && _isMediaItem(item)) {
+                          final (start, _) = _findMediaRunForIndex(index);
+                          if ((index - start) % 2 != 0) {
+                            return const SizedBox.shrink();
+                          }
+                        }
+
                         bool showTimePill = false;
-                        if (index == _displayItemList.length - 1) {
+                        int lastIndexInGroup = index;
+                        if (mediaGallery && _isMediaItem(item)) {
+                          final (_, runEnd) = _findMediaRunForIndex(index);
+                          lastIndexInGroup = math.min(index + 1, runEnd);
+                        }
+
+                        if (lastIndexInGroup == _displayItemList.length - 1) {
                           showTimePill = true;
                         } else {
-                          final olderItem = _displayItemList[index + 1];
+                          final olderItem = _displayItemList[lastIndexInGroup + 1];
                           if (olderItem.type == ItemType.date) {
                             showTimePill = true;
                           } else {
                             final diff = DateTime.fromMillisecondsSinceEpoch(
-                                    item.at!,
+                                    _displayItemList[lastIndexInGroup].at!,
                                     isUtc: true)
                                 .difference(DateTime.fromMillisecondsSinceEpoch(
                                     olderItem.at!,
@@ -1646,14 +1686,15 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                if (urlInfo != null ||
+                                                if (linkPreview &&
+                                                    (urlInfo != null ||
                                                     (item.data != null &&
                                                         (item.data!.containsKey(
                                                                 "url_info_list") ||
                                                             item.data!.containsKey(
                                                                 "url_metadata_state"))) ||
                                                     _linkRegExp
-                                                        .hasMatch(item.text))
+                                                        .hasMatch(item.text)))
                                                   GestureDetector(
                                                     onTap: () async {
                                                       if (_hasNotesSelected) {
@@ -1694,7 +1735,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                                                               force: true),
                                                     ),
                                                   ),
-                                                _buildNoteItem(item),
+                                                _buildNoteItem(item, index: index),
                                               ],
                                             ),
                                           ),
@@ -1768,7 +1809,65 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildNoteItem(ModelItem item) {
+  /// Returns true if the item is an image or video type.
+  bool _isMediaItem(ModelItem item) {
+    return item.type == ItemType.image || item.type == ItemType.video;
+  }
+
+  /// Finds the consecutive run of image/video items around [index].
+  /// Returns (startIndex, endIndex) inclusive in the _displayItemList.
+  /// The list is ordered DESC (newest first at index 0) when reverse=true.
+  (int, int) _findMediaRunForIndex(int index) {
+    int start = index;
+    int end = index;
+    // Expand upward (toward index 0 = newer items in DESC order)
+    while (start > 0 && _isMediaItem(_displayItemList[start - 1])) {
+      start--;
+    }
+    // Expand downward (toward older items)
+    while (end < _displayItemList.length - 1 &&
+        _isMediaItem(_displayItemList[end + 1])) {
+      end++;
+    }
+    return (start, end);
+  }
+
+  Widget _buildNoteItem(ModelItem item, {int? index}) {
+    // ── Media gallery grouping ───────────────────────────────────────────
+    if (mediaGallery && index != null && _isMediaItem(item)) {
+      final (runStart, runEnd) = _findMediaRunForIndex(index);
+      final int relativeIndex = index - runStart;
+
+      // Group into rows of 2. Only the first item in each row renders the row.
+      if (relativeIndex % 2 != 0) {
+        return const SizedBox.shrink();
+      }
+
+      // Items in this row: index and potentially index + 1
+      final List<ModelItem> rowItems = [];
+      rowItems.add(_displayItemList[index]);
+      if (index + 1 <= runEnd) {
+        rowItems.add(_displayItemList[index + 1]);
+      }
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          alignment: WrapAlignment.end,
+          children: rowItems.map((mediaItem) {
+            // Calculate width to fit 2 columns in the message bubble space
+            // Subtracting bubble margins and internal padding
+            final double cellWidth =
+                (MediaQuery.of(context).size.width - 60) / 2;
+            return _buildGalleryCell(mediaItem, cellWidth);
+          }).toList(),
+        ),
+      );
+    }
+
+    // ── Normal single-item rendering ─────────────────────────────────────
     switch (item.type) {
       case ItemType.text:
         return ItemWidgetText(item: item);
@@ -1795,6 +1894,104 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildGalleryCell(ModelItem mediaItem, double width) {
+    final bool isVideo = mediaItem.type == ItemType.video;
+    final bool isDownloadable =
+        mediaItem.state == SyncState.downloadable.value;
+    final cs = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      width: width,
+      height: width,
+      child: GestureDetector(
+        onLongPress: () => onItemLongPressed(mediaItem),
+        onTap: () {
+          if (_hasNotesSelected) {
+            onItemTapped(mediaItem);
+          } else {
+            viewImageVideo(mediaItem);
+          }
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: _selectedItems.contains(mediaItem)
+                ? cs.onSurface.withValues(alpha: 0.1)
+                : Colors.transparent,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (mediaItem.thumbnail != null)
+                  Image.memory(
+                    mediaItem.thumbnail!,
+                    fit: BoxFit.cover,
+                    height: width,
+                    width: width,
+                  )
+                else
+                  Container(
+                    height: width,
+                    width: width,
+                    color: cs.onSurface.withValues(alpha: 0.05),
+                    child: Icon(
+                      isVideo ? LucideIcons.video : LucideIcons.image,
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                    ),
+                  ),
+                // Overlay for video or downloadable state
+                if (isVideo || isDownloadable)
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isDownloadable
+                          ? LucideIcons.arrowDown
+                          : LucideIcons.play,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                // Corner video icon always present if it's a video
+                if (isVideo)
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Icon(
+                        LucideIcons.video,
+                        color: Colors.white,
+                        size: 10,
+                      ),
+                    ),
+                  ),
+                // Selection overlay
+                if (_selectedItems.contains(mediaItem))
+                  Container(
+                    color: cs.primary.withValues(alpha: 0.2),
+                    child: const Center(
+                      child: Icon(Icons.check_circle, color: Colors.white),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void viewImageVideo(ModelItem item) async {

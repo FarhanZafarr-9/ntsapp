@@ -60,6 +60,10 @@ class SettingsPageState extends State<SettingsPage> {
   late bool useGroupSettings;
   late bool globalShowDateTime;
   late bool globalShowNoteBorder;
+  late bool globalLinkPreview;
+  late bool globalSortOldestFirst;
+  late bool globalMediaGallery;
+  late bool globalGroupLock;
 
   @override
   void initState() {
@@ -73,6 +77,14 @@ class SettingsPageState extends State<SettingsPage> {
         ModelSetting.get("global_show_date_time", "yes") == "yes";
     globalShowNoteBorder =
         ModelSetting.get("global_show_note_border", "yes") == "yes";
+    globalLinkPreview =
+        ModelSetting.get("global_link_preview", "yes") == "yes";
+    globalSortOldestFirst =
+        ModelSetting.get("global_sort_order", "newest") == "oldest";
+    globalMediaGallery =
+        ModelSetting.get("global_media_gallery", "no") == "yes";
+    globalGroupLock =
+        ModelSetting.get("global_group_lock", "no") == "yes";
   }
 
   Future<void> checkDeviceAuth() async {
@@ -102,6 +114,27 @@ class SettingsPageState extends State<SettingsPage> {
   Future<void> _setGlobalShowNoteBorder(bool value) async {
     setState(() => globalShowNoteBorder = value);
     await ModelSetting.set("global_show_note_border", value ? "yes" : "no");
+  }
+
+  Future<void> _setGlobalLinkPreview(bool value) async {
+    setState(() => globalLinkPreview = value);
+    await ModelSetting.set("global_link_preview", value ? "yes" : "no");
+  }
+
+  Future<void> _setGlobalSortOrder(bool oldestFirst) async {
+    setState(() => globalSortOldestFirst = oldestFirst);
+    await ModelSetting.set(
+        "global_sort_order", oldestFirst ? "oldest" : "newest");
+  }
+
+  Future<void> _setGlobalMediaGallery(bool value) async {
+    setState(() => globalMediaGallery = value);
+    await ModelSetting.set("global_media_gallery", value ? "yes" : "no");
+  }
+
+  Future<void> _setGlobalGroupLock(bool value) async {
+    setState(() => globalGroupLock = value);
+    await ModelSetting.set("global_group_lock", value ? "yes" : "no");
   }
 
   Future<void> _authenticate() async {
@@ -476,6 +509,64 @@ class SettingsPageState extends State<SettingsPage> {
               ),
               onTap: !useGroupSettings
                   ? () => _setGlobalShowNoteBorder(!globalShowNoteBorder)
+                  : null,
+            ),
+            _SettingsTile(
+              enabled: !useGroupSettings,
+              leading:
+                  _buildLeadingIcon(LucideIcons.link, cs.onSurfaceVariant),
+              title: const Text("Link Previews"),
+              subtitle: const Text("Auto-fetch URL metadata"),
+              trailing: Switch(
+                value: globalLinkPreview,
+                onChanged: !useGroupSettings ? _setGlobalLinkPreview : null,
+              ),
+              onTap: !useGroupSettings
+                  ? () => _setGlobalLinkPreview(!globalLinkPreview)
+                  : null,
+            ),
+            _SettingsTile(
+              enabled: !useGroupSettings,
+              leading: _buildLeadingIcon(
+                  LucideIcons.arrowUpDown, cs.onSurfaceVariant),
+              title: const Text("Sort Order"),
+              subtitle: Text(globalSortOldestFirst
+                  ? "Oldest first"
+                  : "Newest first"),
+              trailing: Switch(
+                value: globalSortOldestFirst,
+                onChanged: !useGroupSettings ? _setGlobalSortOrder : null,
+              ),
+              onTap: !useGroupSettings
+                  ? () => _setGlobalSortOrder(!globalSortOldestFirst)
+                  : null,
+            ),
+            _SettingsTile(
+              enabled: !useGroupSettings,
+              leading: _buildLeadingIcon(
+                  LucideIcons.layoutGrid, cs.onSurfaceVariant),
+              title: const Text("Media Gallery"),
+              subtitle: const Text("Group consecutive images"),
+              trailing: Switch(
+                value: globalMediaGallery,
+                onChanged: !useGroupSettings ? _setGlobalMediaGallery : null,
+              ),
+              onTap: !useGroupSettings
+                  ? () => _setGlobalMediaGallery(!globalMediaGallery)
+                  : null,
+            ),
+            _SettingsTile(
+              enabled: !useGroupSettings,
+              leading:
+                  _buildLeadingIcon(LucideIcons.lock, cs.onSurfaceVariant),
+              title: const Text("Lock All Groups"),
+              subtitle: const Text("Require auth to open any group"),
+              trailing: Switch(
+                value: globalGroupLock,
+                onChanged: !useGroupSettings ? _setGlobalGroupLock : null,
+              ),
+              onTap: !useGroupSettings
+                  ? () => _setGlobalGroupLock(!globalGroupLock)
                   : null,
             ),
           ]),

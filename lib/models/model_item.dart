@@ -204,7 +204,8 @@ class ModelItem {
   }
 
   static Future<List<ModelItem>> getInGroup(
-      String groupId, Map<String, bool> filters) async {
+      String groupId, Map<String, bool> filters,
+      {bool sortAsc = false}) async {
     final dbHelper = StorageSqlite.instance;
     final db = await dbHelper.database;
     List<String> filterParams = [];
@@ -253,7 +254,7 @@ class ModelItem {
     List<Map<String, dynamic>> rows = await db.rawQuery('''
         SELECT * FROM item
         WHERE type != ${ItemType.date.value} AND group_id = '$groupId' AND archived_at = 0 $filterQuery
-        ORDER BY at DESC
+        ORDER BY at ${sortAsc ? 'ASC' : 'DESC'}
       ''');
     return await Future.wait(rows.map((map) => fromMap(map)));
   }

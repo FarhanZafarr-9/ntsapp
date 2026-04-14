@@ -402,7 +402,51 @@ class _PageCategoriesGroupsState extends State<PageCategoriesGroups> {
     }
   }
 
-  void navigateToNotes(ModelGroup group, List<String> sharedContents) {
+  Future<void> navigateToNotes(
+      ModelGroup group, List<String> sharedContents) async {
+    // ── Group lock check ──────────────────────────────────────────────────
+    bool isGroupLocked = false;
+    bool useGroupSettings =
+        ModelSetting.get("use_group_settings", "yes") == "yes";
+    if (useGroupSettings) {
+      Map<String, dynamic>? data = group.data;
+      if (data != null && data.containsKey("group_lock")) {
+        isGroupLocked = data["group_lock"] == 1;
+      }
+    } else {
+      isGroupLocked =
+          ModelSetting.get("global_group_lock", "no") == "yes";
+    }
+
+    if (isGroupLocked) {
+      try {
+        bool authenticated = await _auth.authenticate(
+          localizedReason: 'Authenticate to open this group',
+          options: const AuthenticationOptions(
+            biometricOnly: false,
+            stickyAuth: true,
+          ),
+        );
+        if (!authenticated) {
+          if (mounted) {
+            displaySnackBar(context,
+                message: "Authentication required", seconds: 1);
+          }
+          return;
+        }
+      } catch (e) {
+        logger.error("Group lock auth failed", error: e);
+        if (mounted) {
+          displaySnackBar(context,
+              message: "Authentication failed", seconds: 1);
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
+    // ── Navigate ──────────────────────────────────────────────────────────
     if (widget.runningOnDesktop) {
       setState(() {
         selectedGroup = group;

@@ -39,6 +39,10 @@ class PageGroupAddEditState extends State<PageGroupAddEdit> {
 
   bool showDateTime = true;
   bool showNoteBorder = true;
+  bool linkPreview = true;
+  bool sortOldestFirst = false;
+  bool mediaGallery = false;
+  bool groupLock = false;
 
   String title = "";
   Uint8List? thumbnail;
@@ -77,6 +81,18 @@ class PageGroupAddEditState extends State<PageGroupAddEdit> {
         if (groupData!.containsKey("note_border")) {
           int noteBorderInt = groupData!["note_border"];
           showNoteBorder = noteBorderInt == 1;
+        }
+        if (groupData!.containsKey("link_preview")) {
+          linkPreview = groupData!["link_preview"] == 1;
+        }
+        if (groupData!.containsKey("sort_order")) {
+          sortOldestFirst = groupData!["sort_order"] == 1;
+        }
+        if (groupData!.containsKey("media_gallery")) {
+          mediaGallery = groupData!["media_gallery"] == 1;
+        }
+        if (groupData!.containsKey("group_lock")) {
+          groupLock = groupData!["group_lock"] == 1;
         }
       }
     }
@@ -227,6 +243,50 @@ class PageGroupAddEditState extends State<PageGroupAddEdit> {
     }
   }
 
+  Future<void> setLinkPreview(bool value) async {
+    itemChanged = true;
+    setState(() => linkPreview = value);
+    int v = linkPreview ? 1 : 0;
+    if (groupData != null) {
+      groupData!["link_preview"] = v;
+    } else {
+      groupData = {"link_preview": v};
+    }
+  }
+
+  Future<void> setSortOrder(bool oldestFirst) async {
+    itemChanged = true;
+    setState(() => sortOldestFirst = oldestFirst);
+    int v = sortOldestFirst ? 1 : 0;
+    if (groupData != null) {
+      groupData!["sort_order"] = v;
+    } else {
+      groupData = {"sort_order": v};
+    }
+  }
+
+  Future<void> setMediaGallery(bool value) async {
+    itemChanged = true;
+    setState(() => mediaGallery = value);
+    int v = mediaGallery ? 1 : 0;
+    if (groupData != null) {
+      groupData!["media_gallery"] = v;
+    } else {
+      groupData = {"media_gallery": v};
+    }
+  }
+
+  Future<void> setGroupLock(bool value) async {
+    itemChanged = true;
+    setState(() => groupLock = value);
+    int v = groupLock ? 1 : 0;
+    if (groupData != null) {
+      groupData!["group_lock"] = v;
+    } else {
+      groupData = {"group_lock": v};
+    }
+  }
+
   // ── UI helpers ────────────────────────────────────────────────────────────
 
   Widget _sectionLabel(String text) {
@@ -342,169 +402,209 @@ class PageGroupAddEditState extends State<PageGroupAddEdit> {
               )
             : null,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionLabel("Title"),
-            const SizedBox(height: 8),
-            TextField(
-              controller: titleController,
-              textCapitalization: TextCapitalization.sentences,
-              autofocus: widget.group == null ? false : true,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface, fontSize: 16),
-              textInputAction: TextInputAction.done,
-              onSubmitted: saveGroup,
-              decoration: InputDecoration(
-                hintText: 'Group title',
-                hintStyle: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
-                        .withValues(alpha: 0.5),
-                    fontWeight: FontWeight.w400),
-                filled: true,
-                fillColor: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.06),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionLabel("Title"),
+              const SizedBox(height: 8),
+              TextField(
+                controller: titleController,
+                textCapitalization: TextCapitalization.sentences,
+                autofocus: widget.group == null ? false : true,
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface, fontSize: 16),
+                textInputAction: TextInputAction.done,
+                onSubmitted: saveGroup,
+                decoration: InputDecoration(
+                  hintText: 'Group title',
+                  hintStyle: TextStyle(
                       color: Theme.of(context)
                           .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.15),
-                      width: 0.75),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
-              onChanged: (value) {
-                title = value.trim();
-                itemChanged = true;
-              },
-            ),
-            const SizedBox(height: 24),
-            _sectionLabel("Color"),
-            const SizedBox(height: 8),
-            _tappableTile(
-              context: context,
-              onTap: () async {
-                Color? pickedColor = await showDialog<Color>(
-                  context: context,
-                  builder: (context) => ColorPickerDialog(color: colorCode),
-                );
-                if (pickedColor != null) {
-                  setState(() {
-                    itemChanged = true;
-                    colorCode = colorToHex(pickedColor);
-                  });
-                }
-              },
-              leading: Container(
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  color: colorFromHex(colorCode ?? "#00BCD4"),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              label: "Change color",
-            ),
-            const SizedBox(height: 24),
-            _sectionLabel("Category"),
-            const SizedBox(height: 8),
-            _tappableTile(
-              context: context,
-              onTap: addToCategory,
-              leading: Icon(
-                LucideIcons.folder,
-                size: 18,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              label: (category == null || category!.title == "DND")
-                  ? "Select category"
-                  : category!.title,
-              trailing: (category != null && category!.title != "DND")
-                  ? GestureDetector(
-                      onTap: removeCategory,
-                      child: Icon(
-                        LucideIcons.x,
-                        size: 16,
+                          .onSurfaceVariant
+                          .withValues(alpha: 0.5),
+                      fontWeight: FontWeight.w400),
+                  filled: true,
+                  fillColor: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.06),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
                         color: Theme.of(context)
                             .colorScheme
-                            .onSurfaceVariant
-                            .withValues(alpha: 0.6),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(height: 24),
-            _sectionLabel("Display"),
-            const SizedBox(height: 8),
-            _settingsToggleTile(
-              context: context,
-              icon: LucideIcons.clock9,
-              label: 'Date / Time',
-              value: showDateTime,
-              onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
-                  ? setShowDateTime
-                  : (v) {},
-            ),
-            const SizedBox(height: 3),
-            _settingsToggleTile(
-              context: context,
-              icon: LucideIcons.rectangleHorizontal,
-              label: 'Note border',
-              value: showNoteBorder,
-              onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
-                  ? setShowNoteBorder
-                  : (v) {},
-            ),
-            if (ModelSetting.get("use_group_settings", "yes") != "yes") ...[
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  "These settings are currently controlled globally from Settings.",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.primary,
-                    fontStyle: FontStyle.italic,
+                            .onSurface
+                            .withValues(alpha: 0.15),
+                        width: 0.75),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
+                onChanged: (value) {
+                  title = value.trim();
+                  itemChanged = true;
+                },
               ),
-            ],
-            const SizedBox(height: 24),
-            if (widget.group != null)
+              const SizedBox(height: 24),
+              _sectionLabel("Color"),
+              const SizedBox(height: 8),
               _tappableTile(
                 context: context,
-                onTap: () => archiveGroup(widget.group!),
-                leading: Icon(
-                  LucideIcons.trash,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.error,
+                onTap: () async {
+                  Color? pickedColor = await showDialog<Color>(
+                    context: context,
+                    builder: (context) => ColorPickerDialog(color: colorCode),
+                  );
+                  if (pickedColor != null) {
+                    setState(() {
+                      itemChanged = true;
+                      colorCode = colorToHex(pickedColor);
+                    });
+                  }
+                },
+                leading: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: colorFromHex(colorCode ?? "#00BCD4"),
+                    shape: BoxShape.circle,
+                  ),
                 ),
-                label: 'Delete group',
-                labelColor: Theme.of(context).colorScheme.error,
-                tileColor:
-                    Theme.of(context).colorScheme.error.withValues(alpha: 0.06),
+                label: "Change color",
               ),
-            Expanded(
-              child: const SizedBox.shrink(),
-            ),
-          ],
+              const SizedBox(height: 24),
+              _sectionLabel("Category"),
+              const SizedBox(height: 8),
+              _tappableTile(
+                context: context,
+                onTap: addToCategory,
+                leading: Icon(
+                  LucideIcons.folder,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                label: (category == null || category!.title == "DND")
+                    ? "Select category"
+                    : category!.title,
+                trailing: (category != null && category!.title != "DND")
+                    ? GestureDetector(
+                        onTap: removeCategory,
+                        child: Icon(
+                          LucideIcons.x,
+                          size: 16,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant
+                              .withValues(alpha: 0.6),
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 24),
+              _sectionLabel("Display"),
+              const SizedBox(height: 8),
+              _settingsToggleTile(
+                context: context,
+                icon: LucideIcons.clock9,
+                label: 'Date / Time',
+                value: showDateTime,
+                onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
+                    ? setShowDateTime
+                    : (v) {},
+              ),
+              const SizedBox(height: 3),
+              _settingsToggleTile(
+                context: context,
+                icon: LucideIcons.rectangleHorizontal,
+                label: 'Note border',
+                value: showNoteBorder,
+                onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
+                    ? setShowNoteBorder
+                    : (v) {},
+              ),
+              const SizedBox(height: 3),
+              _settingsToggleTile(
+                context: context,
+                icon: LucideIcons.link,
+                label: 'Link previews',
+                value: linkPreview,
+                onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
+                    ? setLinkPreview
+                    : (v) {},
+              ),
+              const SizedBox(height: 3),
+              _settingsToggleTile(
+                context: context,
+                icon: LucideIcons.arrowUpDown,
+                label: 'Oldest first',
+                value: sortOldestFirst,
+                onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
+                    ? setSortOrder
+                    : (v) {},
+              ),
+              const SizedBox(height: 3),
+              _settingsToggleTile(
+                context: context,
+                icon: LucideIcons.layoutGrid,
+                label: 'Media gallery',
+                value: mediaGallery,
+                onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
+                    ? setMediaGallery
+                    : (v) {},
+              ),
+              const SizedBox(height: 3),
+              _settingsToggleTile(
+                context: context,
+                icon: LucideIcons.lock,
+                label: 'Group lock',
+                value: groupLock,
+                onChanged: ModelSetting.get("use_group_settings", "yes") == "yes"
+                    ? setGroupLock
+                    : (v) {},
+              ),
+              if (ModelSetting.get("use_group_settings", "yes") != "yes") ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    "These settings are currently controlled globally from Settings.",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              if (widget.group != null)
+                _tappableTile(
+                  context: context,
+                  onTap: () => archiveGroup(widget.group!),
+                  leading: Icon(
+                    LucideIcons.trash,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  label: 'Delete group',
+                  labelColor: Theme.of(context).colorScheme.error,
+                  tileColor:
+                      Theme.of(context).colorScheme.error.withValues(alpha: 0.06),
+                ),
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(

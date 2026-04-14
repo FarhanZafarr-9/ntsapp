@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:ntsapp/utils/common.dart';
 import 'package:ntsapp/models/model_category_group.dart';
@@ -13,6 +14,7 @@ import '../widgets_shimmer.dart';
 import '../../utils/enums.dart';
 import '../../models/model_category.dart';
 import '../../models/model_item.dart';
+import '../../models/model_setting.dart';
 import 'page_category_add_edit.dart';
 import 'page_group_add_edit.dart';
 import 'page_items.dart';
@@ -41,6 +43,7 @@ class PageCategoryGroups extends StatefulWidget {
 
 class _PageCategoryGroupsState extends State<PageCategoryGroups> {
   final AppLogger logger = AppLogger(prefixes: ["CategoryGroups"]);
+  final LocalAuthentication _auth = LocalAuthentication();
   List<ModelGroup> categoryGroupsDisplayList = [];
   late ModelCategory category;
   ModelGroup? selectedGroup;
@@ -186,7 +189,50 @@ class _PageCategoryGroupsState extends State<PageCategoryGroups> {
     }
   }
 
-  void navigateToNotes(ModelGroup group, bool updateGroupList) {
+  Future<void> navigateToNotes(ModelGroup group, bool updateGroupList) async {
+    // ── Group lock check ──────────────────────────────────────────────────
+    bool isGroupLocked = false;
+    bool useGroupSettings =
+        ModelSetting.get("use_group_settings", "yes") == "yes";
+    if (useGroupSettings) {
+      Map<String, dynamic>? data = group.data;
+      if (data != null && data.containsKey("group_lock")) {
+        isGroupLocked = data["group_lock"] == 1;
+      }
+    } else {
+      isGroupLocked =
+          ModelSetting.get("global_group_lock", "no") == "yes";
+    }
+
+    if (isGroupLocked) {
+      try {
+        bool authenticated = await _auth.authenticate(
+          localizedReason: 'Authenticate to open this group',
+          options: const AuthenticationOptions(
+            biometricOnly: false,
+            stickyAuth: true,
+          ),
+        );
+        if (!authenticated) {
+          if (mounted) {
+            displaySnackBar(context,
+                message: "Authentication required", seconds: 1);
+          }
+          return;
+        }
+      } catch (e) {
+        logger.error("Group lock auth failed", error: e);
+        if (mounted) {
+          displaySnackBar(context,
+              message: "Authentication failed", seconds: 1);
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
+    // ── Navigate ──────────────────────────────────────────────────────────
     List<String> sharedContents =
         loadedSharedContents || widget.sharedContents.isEmpty
             ? []
