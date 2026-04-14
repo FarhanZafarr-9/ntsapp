@@ -2119,7 +2119,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
     final cs = Theme.of(context).colorScheme;
     const double iconSize = 20;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: cs.onSurface.withValues(alpha: 0.05),
         border: Border(
@@ -2128,7 +2128,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
         ),
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
+        constraints: const BoxConstraints(minHeight: 52),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -2199,8 +2199,14 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
   Widget widgetBottomSection() {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
-      color: Colors.transparent,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        border: Border(
+          top: BorderSide(
+              color: cs.onSurface.withValues(alpha: 0.08), width: 0.5),
+        ),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 52),
         child: Row(
@@ -2236,10 +2242,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                             margin: const EdgeInsets.only(bottom: 6),
                             decoration: BoxDecoration(
                               color: cs.onSurface.withValues(alpha: 0.04),
-                              borderRadius: const BorderRadius.only(
-                                topRight: Radius.circular(12),
-                                bottomRight: Radius.circular(12),
-                              ),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: cs.onSurface.withValues(alpha: 0.1),
                                 width: 0.75,
@@ -2248,12 +2251,7 @@ class _PageItemsState extends State<PageItems> with TickerProviderStateMixin {
                             child: IntrinsicHeight(
                               child: Row(
                                 children: [
-                                  // Left accent bar — square left, no radius
-                                  Container(
-                                    width: 3,
-                                    color: cs.primary.withValues(alpha: 0.7),
-                                  ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 12),
                                   Expanded(
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
