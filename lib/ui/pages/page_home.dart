@@ -368,6 +368,12 @@ class _PageCategoriesGroupsState extends State<PageCategoriesGroups> {
   }
 
   void navigateToNotesOrGroups(ModelCategoryGroup categoryGroup) {
+    // Block navigation if app is locked
+    if (requiresAuthentication && !isAuthenticated) {
+      EventStream().publish(AppEvent(type: EventType.authorise));
+      return;
+    }
+
     List<String> sharedContents =
         loadedSharedContents || widget.sharedContents.isEmpty
             ? []
@@ -964,6 +970,11 @@ class _PageCategoriesGroupsState extends State<PageCategoriesGroups> {
           onSelected: (value) {
             switch (value) {
               case 0:
+                // Block navigation while locked
+                if (requiresAuthentication && !isAuthenticated) {
+                  EventStream().publish(AppEvent(type: EventType.authorise));
+                  break;
+                }
                 if (widget.runningOnDesktop) {
                   widget.setShowHidePage!(
                       PageType.settings,
@@ -995,6 +1006,11 @@ class _PageCategoriesGroupsState extends State<PageCategoriesGroups> {
                 }
                 break;
               case 1:
+                // Block navigation while locked
+                if (requiresAuthentication && !isAuthenticated) {
+                  EventStream().publish(AppEvent(type: EventType.authorise));
+                  break;
+                }
                 if (widget.runningOnDesktop) {
                   widget.setShowHidePage!(PageType.starred, true, PageParams());
                 } else {
@@ -1011,6 +1027,11 @@ class _PageCategoriesGroupsState extends State<PageCategoriesGroups> {
                 }
                 break;
               case 2:
+                // Block navigation while locked
+                if (requiresAuthentication && !isAuthenticated) {
+                  EventStream().publish(AppEvent(type: EventType.authorise));
+                  break;
+                }
                 if (widget.runningOnDesktop) {
                   widget.setShowHidePage!(PageType.archive, true, PageParams());
                 } else {

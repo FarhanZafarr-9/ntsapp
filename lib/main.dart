@@ -340,8 +340,9 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
           if (DateTime.now().difference(AuthGuard.lastActiveAt).inSeconds > 60) {
             AuthGuard.lastActiveAt = DateTime.now();
             EventStream().publish(AppEvent(type: EventType.authorise));
-          } else {
-            // Re-unlock if returning within the grace period
+          } else if (!AuthGuard.isLocked.value) {
+            // Only re-unlock automatically if we were NOT already locked
+            // (i.e., this is a quick return from background, not a cancelled auth)
             AuthGuard.isLocked.value = false;
           }
         }
