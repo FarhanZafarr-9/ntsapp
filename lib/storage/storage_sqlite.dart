@@ -345,7 +345,7 @@ class StorageSqlite {
       'id': uuid.v4(),
       'group_id': notesGroupId,
       'text':
-          'Welcome to Note Safe!\nIdeas, lists or anything on your mind, put it all in here.\n\nLong press on this note for delete, edit and other options.',
+          'Welcome to NotePrime!\nIdeas, lists or anything on your mind, put it all in here.\n\nLong press on this note for delete, edit and other options.',
       'thumbnail': null,
       'starred': 0,
       'pinned': 0,

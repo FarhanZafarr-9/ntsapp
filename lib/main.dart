@@ -187,7 +187,7 @@ Future<void> initializeMediaParams() async {
       await secureStorage.read(key: "media_params_initialized") ?? "no";
   if (mediaParamsInitialized == "no") {
     await secureStorage.write(
-        key: AppString.appName.string, value: "Note Safe");
+        key: AppString.appName.string, value: "NotePrime");
     await secureStorage.write(key: "media_dir", value: "ntsmedia");
     await secureStorage.write(key: "backup_dir", value: "ntsbackup");
     await secureStorage.write(key: "db_file", value: "notetoself.db");
@@ -563,7 +563,7 @@ class PrivacyShield extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  "Note Safe Locked",
+                  "NotePrime Locked",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

@@ -1,5 +1,5 @@
 name: ntsapp
-description: "Note Safe - Encrypted notes"
+description: "Private notes with prime protection and prime experience"
 publish_to: "none"
 version: 2.2.4+71
 
@@ -89,6 +89,8 @@ flutter_launcher_icons:
   android: "ic_launcher"
   ios: true
   image_path: "assets/logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo.png"
   min_sdk_android: 21 # android min sdk min:16, default 21
   web:
     generate: false
@@ -102,7 +104,7 @@ flutter_native_splash:
   ios: false
   web: false
   image: assets/splash.png
-  color: "#16161A"
+  color: "#141414"
   android_12:
     image: assets/splash.png
-    color: "#16161A"
+    color: "#141414"
